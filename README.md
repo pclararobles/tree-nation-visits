@@ -43,35 +43,9 @@ docker compose up --build api
 
 Open http://localhost:5173. The frontend expects the API at `http://localhost:8000` by default.
 
-## API Usage
+## API Documentation
 
-Create a visit event:
-
-```bash
-curl -X POST http://localhost:8000/api/visits \
-  -H "Content-Type: application/json" \
-  -d '{"customer_id": "customer-123", "occurred_at": "2026-05-25T09:10:00Z"}'
-```
-
-If `occurred_at` is omitted, the service uses the current server time in UTC.
-
-Get a customer:
-
-```bash
-curl http://localhost:8000/api/customers/customer-123
-```
-
-Get hourly aggregates for the frontend:
-
-```bash
-curl http://localhost:8000/api/visits/hourly
-```
-
-Optional filters:
-
-```bash
-curl "http://localhost:8000/api/visits/hourly?start=2026-05-25T00:00:00Z&end=2026-05-26T00:00:00Z"
-```
+Once the backend is running, the interactive OpenAPI documentation is hosted at http://localhost:8000/docs.
 
 ## Assumptions
 
