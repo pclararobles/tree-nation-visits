@@ -10,7 +10,6 @@ from app.config import (
     DEFAULT_DATABASE_PATH,
     DEFAULT_VISITS_PER_TREE,
 )
-from app.repository import VisitRepository
 from app.services.database_service import DatabaseService
 from app.view import router
 
@@ -26,7 +25,7 @@ def create_app(
         description="Tracks shop visits and converts configurable visit milestones into planted tree counters.",
     )
     engine = DatabaseService.create_engine(database_path)
-    app.state.visit_repository = VisitRepository(engine)
+    app.state.database_engine = engine
     app.state.visits_per_tree = visits_per_tree
 
     app.add_middleware(

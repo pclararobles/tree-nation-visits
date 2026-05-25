@@ -26,15 +26,15 @@ def test_app_initialization_runs_database_migrations(tmp_path):
     assert version == ("0001_create_visit_tables",)
 
 
-def test_app_reuses_singleton_repository_dependency(tmp_path):
+def test_app_reuses_singleton_database_engine(tmp_path):
     app = create_app(database_path=tmp_path / "visits.db", visits_per_tree=5)
     client = TestClient(app)
-    repository = app.state.visit_repository
+    engine = app.state.database_engine
 
     response = client.post("/api/visits", json={"customer_id": "customer-123"})
 
     assert response.status_code == 201
-    assert app.state.visit_repository is repository
+    assert app.state.database_engine is engine
 
 
 def test_visit_events_update_customer_state_and_tree_milestones(tmp_path):

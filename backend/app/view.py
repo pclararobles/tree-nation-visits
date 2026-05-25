@@ -3,17 +3,17 @@ from __future__ import annotations
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy.engine import Engine
 
 from app.models import CustomerState, CustomerSummary, HourlyVisitCounts, VisitEvent
-from app.repository import VisitRepository
 from app.services.visit_service import VisitService
 
 
 router = APIRouter(prefix="/api")
 
 
-def get_visit_repository(request: Request) -> VisitRepository:
-    return request.app.state.visit_repository
+def get_database_engine(request: Request) -> Engine:
+    return request.app.state.database_engine
 
 
 def get_visits_per_tree(request: Request) -> int:
@@ -28,10 +28,10 @@ def get_visits_per_tree(request: Request) -> int:
 )
 def receive_visit(
     event: VisitEvent,
-    repository: VisitRepository = Depends(get_visit_repository),
+    engine: Engine = Depends(get_database_engine),
     visits_per_tree: int = Depends(get_visits_per_tree),
 ) -> CustomerState:
-    return VisitService.record_visit_event(event, repository, visits_per_tree)
+    return VisitService.record_visit_event(event, engine, visits_per_tree)
 
 
 @router.get(
@@ -40,9 +40,9 @@ def receive_visit(
     tags=["customers"],
 )
 def list_customers(
-    repository: VisitRepository = Depends(get_visit_repository),
+    engine: Engine = Depends(get_database_engine),
 ) -> CustomerSummary:
-    return VisitService.customer_summary(repository)
+    return VisitService.customer_summary(engine)
 
 
 @router.get(
@@ -52,9 +52,9 @@ def list_customers(
 )
 def get_customer(
     customer_id: str,
-    repository: VisitRepository = Depends(get_visit_repository),
+    engine: Engine = Depends(get_database_engine),
 ) -> CustomerState:
-    customer = VisitService.get_customer(customer_id, repository)
+    customer = VisitService.get_customer(customer_id, engine)
     if customer is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -71,8 +71,6 @@ def get_customer(
 def get_hourly_visits(
     start: datetime | None = Query(default=None),
     end: datetime | None = Query(default=None),
-    repository: VisitRepository = Depends(get_visit_repository),
+    engine: Engine = Depends(get_database_engine),
 ) -> HourlyVisitCounts:
-    return HourlyVisitCounts(
-        items=VisitService.hourly_visit_counts(repository, start, end)
-    )
+    return HourlyVisitCounts(items=VisitService.hourly_visit_counts(engine, start, end))

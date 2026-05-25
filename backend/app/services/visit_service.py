@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+from sqlalchemy import func
+from sqlalchemy.engine import Engine
+from sqlmodel import Session, select
+
 from app.database import CustomerRecord, VisitRecord
 from app.models import CustomerState, CustomerSummary, HourlyVisitCount, VisitEvent
-from app.repository import VisitRepository
 
 
 class VisitService:
@@ -12,13 +15,13 @@ class VisitService:
     def record_visit_event(
         cls,
         event: VisitEvent,
-        repository: VisitRepository,
+        engine: Engine,
         visits_per_tree: int,
     ) -> CustomerState:
         return cls.record_visit(
             customer_id=event.customer_id,
             occurred_at=event.occurred_at or datetime.now(timezone.utc),
-            repository=repository,
+            engine=engine,
             visits_per_tree=visits_per_tree,
         )
 
@@ -27,15 +30,15 @@ class VisitService:
         cls,
         customer_id: str,
         occurred_at: datetime,
-        repository: VisitRepository,
+        engine: Engine,
         visits_per_tree: int,
     ) -> CustomerState:
         cls._validate_visits_per_tree(visits_per_tree)
         normalized_time = cls._normalize_datetime(occurred_at)
         occurred_at_text = normalized_time.isoformat()
 
-        with repository.session() as session:
-            customer = repository.get_customer_record(session, customer_id)
+        with Session(engine) as session:
+            customer = session.get(CustomerRecord, customer_id)
             if customer is None:
                 customer = CustomerRecord(
                     customer_id=customer_id,
@@ -48,14 +51,12 @@ class VisitService:
             customer.trees_planted = customer.visit_count // visits_per_tree
             customer.last_connection_at = occurred_at_text
 
-            customer = repository.save_customer_visit(
-                session=session,
-                customer=customer,
-                visit=VisitRecord(
-                    customer_id=customer_id,
-                    occurred_at=occurred_at_text,
-                ),
+            session.add(customer)
+            session.add(
+                VisitRecord(customer_id=customer_id, occurred_at=occurred_at_text)
             )
+            session.commit()
+            session.refresh(customer)
 
         return cls._to_customer_state(customer)
 
@@ -63,19 +64,26 @@ class VisitService:
     def get_customer(
         cls,
         customer_id: str,
-        repository: VisitRepository,
+        engine: Engine,
     ) -> CustomerState | None:
-        customer = repository.get_customer_record_by_id(customer_id)
-        if customer is None:
-            return None
-        return cls._to_customer_state(customer)
+        with Session(engine) as session:
+            customer = session.get(CustomerRecord, customer_id)
+            if customer is None:
+                return None
+            return cls._to_customer_state(customer)
 
     @classmethod
-    def customer_summary(cls, repository: VisitRepository) -> CustomerSummary:
-        customers = [
-            cls._to_customer_state(customer)
-            for customer in repository.list_customer_records()
-        ]
+    def customer_summary(cls, engine: Engine) -> CustomerSummary:
+        statement = select(CustomerRecord).order_by(
+            CustomerRecord.visit_count.desc(),
+            CustomerRecord.customer_id.asc(),
+        )
+        with Session(engine) as session:
+            customers = [
+                cls._to_customer_state(customer)
+                for customer in session.exec(statement).all()
+            ]
+
         return CustomerSummary(
             total_visits=sum(customer.visit_count for customer in customers),
             total_trees_planted=sum(customer.trees_planted for customer in customers),
@@ -85,7 +93,7 @@ class VisitService:
     @classmethod
     def hourly_visit_counts(
         cls,
-        repository: VisitRepository,
+        engine: Engine,
         start: datetime | None = None,
         end: datetime | None = None,
     ) -> list[HourlyVisitCount]:
@@ -96,15 +104,27 @@ class VisitService:
         if end is not None:
             end_text = cls._normalize_datetime(end).isoformat()
 
+        hour = (func.substr(VisitRecord.occurred_at, 1, 13) + ":00:00+00:00").label(
+            "hour"
+        )
+        statement = select(hour, func.count(VisitRecord.id)).select_from(VisitRecord)
+
+        if start_text is not None:
+            statement = statement.where(VisitRecord.occurred_at >= start_text)
+        if end_text is not None:
+            statement = statement.where(VisitRecord.occurred_at < end_text)
+
+        statement = statement.group_by(hour).order_by(hour.asc())
+
+        with Session(engine) as session:
+            rows = session.execute(statement).all()
+
         return [
             HourlyVisitCount(
-                hour=datetime.fromisoformat(hour),
-                visit_count=visit_count,
+                hour=datetime.fromisoformat(row[0]),
+                visit_count=row[1],
             )
-            for hour, visit_count in repository.hourly_visit_rows(
-                start_text,
-                end_text,
-            )
+            for row in rows
         ]
 
     @classmethod
