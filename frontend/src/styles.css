@@ -41,7 +41,10 @@ button {
 .section-heading,
 .summary-band,
 .workspace-grid,
+.admin-sections,
+.admin-lower-grid,
 .metric-panel,
+.admin-section,
 .side-panel,
 form,
 .customer-readout {
@@ -230,10 +233,38 @@ label span {
   gap: 18px;
 }
 
+.admin-sections {
+  flex-direction: column;
+  gap: 18px;
+}
+
+.admin-lower-grid {
+  align-items: flex-start;
+  gap: 18px;
+}
+
 .chart-surface {
   flex: 1 1 auto;
   min-width: 0;
   padding: 20px;
+}
+
+.admin-section {
+  border: 1px solid #cfd9cf;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 18px 48px rgba(47, 64, 53, 0.08);
+}
+
+.admin-lower-grid .side-panel {
+  width: min(360px, 100%);
+  flex: 0 0 360px;
+}
+
+.admin-lower-grid .customer-readout {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 18px;
 }
 
 .section-heading {
@@ -379,7 +410,8 @@ input:focus {
 
 @media (max-width: 900px) {
   .summary-band,
-  .workspace-grid {
+  .workspace-grid,
+  .admin-lower-grid {
     flex-direction: column;
   }
 
@@ -388,6 +420,11 @@ input:focus {
   }
 
   .side-panel {
+    width: 100%;
+    flex-basis: auto;
+  }
+
+  .admin-lower-grid .side-panel {
     width: 100%;
     flex-basis: auto;
   }

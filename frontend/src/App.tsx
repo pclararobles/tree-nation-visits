@@ -273,16 +273,10 @@ function AdminDashboard({ onNavigate }: DashboardProps) {
           <strong>{totalTreesPlanted}</strong>
           <small>Calculated per customer</small>
         </article>
-        <article className="metric-panel image-panel">
-          <img
-            src="https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=900&q=80"
-            alt="Forest canopy"
-          />
-        </article>
       </section>
 
-      <section className="workspace-grid">
-        <div className="chart-surface">
+      <section className="admin-sections">
+        <div className="chart-surface admin-section">
           <div className="section-heading">
             <div>
               <p className="eyebrow">Aggregated per hour</p>
@@ -314,37 +308,41 @@ function AdminDashboard({ onNavigate }: DashboardProps) {
           </div>
         </div>
 
-        <aside className="side-panel">
-          <form onSubmit={handleSubmit}>
-            <div className="section-heading compact">
-              <div>
-                <p className="eyebrow">Debug tools</p>
-                <h2>Add customer visit</h2>
+        <div className="admin-lower-grid">
+          <section className="side-panel admin-section" aria-label="Debug tools">
+            <form onSubmit={handleSubmit}>
+              <div className="section-heading compact">
+                <div>
+                  <p className="eyebrow">Debug tools</p>
+                  <h2>Add customer visit</h2>
+                </div>
+                <Send size={20} aria-hidden="true" />
               </div>
-              <Send size={20} aria-hidden="true" />
-            </div>
 
-            <label>
-              <span>Customer id</span>
-              <input value={customerId} onChange={(event) => setCustomerId(event.target.value)} />
-            </label>
+              <label>
+                <span>Customer id</span>
+                <input value={customerId} onChange={(event) => setCustomerId(event.target.value)} />
+              </label>
 
-            <label>
-              <span>Occurred at</span>
-              <input
-                type="datetime-local"
-                value={occurredAt}
-                onChange={(event) => setOccurredAt(event.target.value)}
-              />
-            </label>
+              <label>
+                <span>Occurred at</span>
+                <input
+                  type="datetime-local"
+                  value={occurredAt}
+                  onChange={(event) => setOccurredAt(event.target.value)}
+                />
+              </label>
 
-            <button className="primary-button" type="submit" disabled={isSubmitting}>
-              <Sprout size={18} aria-hidden="true" />
-              <span>{isSubmitting ? 'Adding' : 'Add visit'}</span>
-            </button>
-          </form>
+              <button className="primary-button" type="submit" disabled={isSubmitting}>
+                <Sprout size={18} aria-hidden="true" />
+                <span>{isSubmitting ? 'Adding' : 'Add visit'}</span>
+              </button>
+            </form>
 
-          <div className="customer-readout">
+            {(error || notice) && <p className={error ? 'message error' : 'message'}>{error ?? notice}</p>}
+          </section>
+
+          <section className="customer-readout admin-section" aria-label="Registered customers">
             <div className="section-heading compact">
               <div>
                 <p className="eyebrow">Registered customers</p>
@@ -379,10 +377,8 @@ function AdminDashboard({ onNavigate }: DashboardProps) {
             ) : (
               <p className="muted">No customers recorded yet.</p>
             )}
-          </div>
-
-          {(error || notice) && <p className={error ? 'message error' : 'message'}>{error ?? notice}</p>}
-        </aside>
+          </section>
+        </div>
       </section>
     </main>
   );
