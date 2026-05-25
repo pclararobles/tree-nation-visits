@@ -38,10 +38,10 @@ class VisitService:
         occurred_at_text = normalized_time.isoformat()
 
         with Session(engine) as session:
-            customer = session.get(CustomerRecord, customer_id)
+            customer = cls._get_customer_by_external_id(session, customer_id)
             if customer is None:
                 customer = CustomerRecord(
-                    customer_id=customer_id,
+                    external_customer_id=customer_id,
                     visit_count=0,
                     trees_planted=0,
                     last_connection_at=occurred_at_text,
@@ -52,9 +52,8 @@ class VisitService:
             customer.last_connection_at = occurred_at_text
 
             session.add(customer)
-            session.add(
-                VisitRecord(customer_id=customer_id, occurred_at=occurred_at_text)
-            )
+            session.flush()
+            session.add(VisitRecord(customer_id=customer.id, occurred_at=occurred_at_text))
             session.commit()
             session.refresh(customer)
 
@@ -67,7 +66,7 @@ class VisitService:
         engine: Engine,
     ) -> CustomerState | None:
         with Session(engine) as session:
-            customer = session.get(CustomerRecord, customer_id)
+            customer = cls._get_customer_by_external_id(session, customer_id)
             if customer is None:
                 return None
             return cls._to_customer_state(customer)
@@ -76,7 +75,7 @@ class VisitService:
     def get_customer_summary(cls, engine: Engine) -> CustomerSummary:
         statement = select(CustomerRecord).order_by(
             CustomerRecord.visit_count.desc(),
-            CustomerRecord.customer_id.asc(),
+            CustomerRecord.external_customer_id.asc(),
         )
         with Session(engine) as session:
             customers = [
@@ -130,11 +129,22 @@ class VisitService:
     @classmethod
     def _to_customer_state(cls, customer: CustomerRecord) -> CustomerState:
         return CustomerState(
-            customer_id=customer.customer_id,
+            customer_id=customer.external_customer_id,
             visit_count=customer.visit_count,
             trees_planted=customer.trees_planted,
             last_connection_at=datetime.fromisoformat(customer.last_connection_at),
         )
+
+    @classmethod
+    def _get_customer_by_external_id(
+        cls,
+        session: Session,
+        external_customer_id: str,
+    ) -> CustomerRecord | None:
+        statement = select(CustomerRecord).where(
+            CustomerRecord.external_customer_id == external_customer_id
+        )
+        return session.exec(statement).one_or_none()
 
     @classmethod
     def _normalize_datetime(cls, value: datetime) -> datetime:

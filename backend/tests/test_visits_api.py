@@ -21,9 +21,20 @@ def test_app_initialization_runs_database_migrations(tmp_path):
         version = connection.execute(
             "SELECT version_num FROM alembic_version"
         ).fetchone()
+        customer_columns = {
+            row[1]: row[5] for row in connection.execute("PRAGMA table_info(customers)")
+        }
+        visit_foreign_keys = [
+            row
+            for row in connection.execute("PRAGMA foreign_key_list(visits)")
+            if row[2] == "customers"
+        ]
 
     assert {"alembic_version", "customers", "visits"}.issubset(tables)
     assert version == ("0001_create_visit_tables",)
+    assert customer_columns["id"] == 1
+    assert customer_columns["external_customer_id"] == 0
+    assert visit_foreign_keys[0][3:5] == ("customer_id", "id")
 
 
 def test_app_reuses_singleton_database_engine(tmp_path):
@@ -70,6 +81,33 @@ def test_visit_events_update_customer_state_and_tree_milestones(tmp_path):
         "trees_planted": 1,
         "last_connection_at": "2026-05-25T10:30:00+00:00",
     }
+
+
+def test_customer_external_identifier_is_separate_from_internal_primary_key(tmp_path):
+    database_path = tmp_path / "visits.db"
+    app = create_app(database_path=database_path, visits_per_tree=3)
+    client = TestClient(app)
+
+    response = client.post(
+        "/api/visits",
+        json={"customer_id": "customer-123", "occurred_at": "2026-05-25T09:10:00Z"},
+    )
+
+    assert response.status_code == 201
+    with sqlite3.connect(database_path) as connection:
+        customer = connection.execute(
+            """
+            SELECT id, external_customer_id
+            FROM customers
+            WHERE external_customer_id = ?
+            """,
+            ("customer-123",),
+        ).fetchone()
+        visit = connection.execute("SELECT customer_id FROM visits").fetchone()
+
+    assert isinstance(customer[0], int)
+    assert customer[1] == "customer-123"
+    assert visit == (customer[0],)
 
 
 def test_hourly_aggregation_counts_all_visits_across_customers(tmp_path):
