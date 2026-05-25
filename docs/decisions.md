@@ -17,7 +17,7 @@ The API exposes four core operations:
 - `POST /api/visits` receives device visit events.
 - `GET /api/customers` returns total visits, total trees planted, and per-customer counters.
 - `GET /api/customers/{customer_id}` returns the customer counters.
-- `GET /api/visits/hourly` returns the aggregate used by the frontend.
+- `GET /api/visits/hourly` returns hourly visit aggregates for operational analysis.
 
 The device can omit `occurred_at`; the service then records the server receive time in UTC. The timestamp is accepted for tests, replay, and simple backfills.
 
@@ -33,7 +33,7 @@ The service seeds 10 baseline customers for a useful first-run dashboard: `custo
 
 ## Frontend
 
-The frontend is a separate React + TypeScript + Vite app. The public route shows aggregate impact metrics only, while `/admin` contains three operational sections: a visits-per-hour graph, a debug form for adding customer visits, and the registered customers list. This keeps customer-level and shop-operation data out of the public view.
+The frontend is a separate React + TypeScript + Vite app. The public route shows aggregate impact metrics only, while `/admin` contains operational sections for the debug visit form and the registered customers list. This keeps customer-level data and internal actions out of the public view.
 
 The admin route is not protected by an authentication module in this codebase. In production, `/admin` would sit behind authentication or another access-control layer. For this service, the route separation documents the intended boundary without adding auth complexity.
 

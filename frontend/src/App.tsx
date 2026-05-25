@@ -1,20 +1,6 @@
-import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Activity, BarChart3, Leaf, RefreshCw, Send, Sprout, Trees, Users } from 'lucide-react';
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts';
-import { CustomerSummary, HourlyVisitCount, getCustomerSummary, getHourlyVisits, recordVisit } from './api';
-
-type ChartPoint = {
-  hour: string;
-  label: string;
-  visits: number;
-};
+import { FormEvent, useEffect, useState } from 'react';
+import { Activity, Leaf, RefreshCw, Send, Sprout, Trees, Users } from 'lucide-react';
+import { CustomerSummary, getCustomerSummary, recordVisit } from './api';
 
 function formatHour(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -25,48 +11,12 @@ function formatHour(value: string) {
   }).format(new Date(value));
 }
 
-function toChartPoint(item: HourlyVisitCount): ChartPoint {
-  return {
-    hour: item.hour,
-    label: formatHour(item.hour),
-    visits: item.visit_count,
-  };
-}
-
 function toApiTimestamp(value: string) {
   return value ? new Date(value).toISOString() : undefined;
 }
 
 function getCurrentView() {
   return window.location.pathname === '/admin' ? 'admin' : 'public';
-}
-
-function useElementSize<T extends HTMLElement>() {
-  const ref = useRef<T | null>(null);
-  const [size, setSize] = useState({ width: 0, height: 0 });
-
-  useLayoutEffect(() => {
-    const node = ref.current;
-    if (!node) {
-      return undefined;
-    }
-
-    const updateSize = () => {
-      const rect = node.getBoundingClientRect();
-      setSize({
-        width: Math.max(0, Math.floor(rect.width)),
-        height: Math.max(0, Math.floor(rect.height)),
-      });
-    };
-
-    updateSize();
-    const observer = new ResizeObserver(updateSize);
-    observer.observe(node);
-
-    return () => observer.disconnect();
-  }, []);
-
-  return [ref, size] as const;
 }
 
 export function App() {
@@ -133,7 +83,7 @@ function PublicDashboard({ onNavigate }: DashboardProps) {
             <span>Refresh</span>
           </button>
           <button className="icon-button" type="button" onClick={() => onNavigate('/admin')}>
-            <BarChart3 size={18} aria-hidden="true" />
+            <Users size={18} aria-hidden="true" />
             <span>Admin</span>
           </button>
         </nav>
@@ -178,7 +128,6 @@ function PublicDashboard({ onNavigate }: DashboardProps) {
 }
 
 function AdminDashboard({ onNavigate }: DashboardProps) {
-  const [hourlyVisits, setHourlyVisits] = useState<HourlyVisitCount[]>([]);
   const [customerSummary, setCustomerSummary] = useState<CustomerSummary | null>(null);
   const [customerId, setCustomerId] = useState('customer-123');
   const [occurredAt, setOccurredAt] = useState('');
@@ -186,9 +135,7 @@ function AdminDashboard({ onNavigate }: DashboardProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [chartRef, chartSize] = useElementSize<HTMLDivElement>();
 
-  const chartData = useMemo(() => hourlyVisits.map(toChartPoint), [hourlyVisits]);
   const customers = customerSummary?.items ?? [];
   const totalVisits = customerSummary?.total_visits ?? 0;
   const totalTreesPlanted = customerSummary?.total_trees_planted ?? 0;
@@ -198,12 +145,7 @@ function AdminDashboard({ onNavigate }: DashboardProps) {
     setError(null);
 
     try {
-      const [hourlyResponse, summaryResponse] = await Promise.all([
-        getHourlyVisits(),
-        getCustomerSummary(),
-      ]);
-      setHourlyVisits(hourlyResponse.items);
-      setCustomerSummary(summaryResponse);
+      setCustomerSummary(await getCustomerSummary());
     } catch (currentError) {
       setError(currentError instanceof Error ? currentError.message : 'Unable to refresh dashboard');
     } finally {
@@ -276,38 +218,6 @@ function AdminDashboard({ onNavigate }: DashboardProps) {
       </section>
 
       <section className="admin-sections">
-        <div className="chart-surface admin-section">
-          <div className="section-heading">
-            <div>
-              <p className="eyebrow">Aggregated per hour</p>
-              <h2>Visits per hour</h2>
-            </div>
-            <span className="status-pill">{isLoading ? 'Loading' : `${chartData.length} hours`}</span>
-          </div>
-
-          <div className="chart-frame" ref={chartRef}>
-            {chartData.length > 0 && chartSize.width > 0 && chartSize.height > 0 ? (
-              <BarChart
-                data={chartData}
-                width={chartSize.width}
-                height={chartSize.height}
-                margin={{ top: 16, right: 20, bottom: 8, left: 0 }}
-              >
-                <CartesianGrid stroke="#d8e0d6" strokeDasharray="4 4" vertical={false} />
-                <XAxis dataKey="label" tickLine={false} axisLine={false} minTickGap={24} />
-                <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={36} />
-                <Tooltip
-                  cursor={{ fill: 'rgba(47, 122, 82, 0.08)' }}
-                  contentStyle={{ borderRadius: 8, borderColor: '#cad5ca' }}
-                />
-                <Bar dataKey="visits" fill="#2f7a52" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            ) : (
-              <div className="empty-state">{chartData.length > 0 ? 'Loading chart...' : 'No visit events received yet.'}</div>
-            )}
-          </div>
-        </div>
-
         <div className="admin-lower-grid">
           <section className="side-panel admin-section" aria-label="Debug tools">
             <form onSubmit={handleSubmit}>

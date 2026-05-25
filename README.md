@@ -55,7 +55,7 @@ docker compose up --build -d api
 
 Open http://localhost:5173. The frontend expects the API at `http://localhost:8000` by default.
 
-The public page shows only aggregate impact metrics. Operational data and actions live under `/admin`: a visits-per-hour graph, a debug form for adding customer visits, and the registered customers list.
+The public page shows only aggregate impact metrics. Operational data and actions live under `/admin`: a debug form for adding customer visits and the registered customers list.
 
 ## API Documentation
 

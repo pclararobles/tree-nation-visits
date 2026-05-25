@@ -1,10 +1,5 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000';
 
-export type HourlyVisitCount = {
-  hour: string;
-  visit_count: number;
-};
-
 export type CustomerState = {
   customer_id: string;
   visit_count: number;
@@ -38,10 +33,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return response.json() as Promise<T>;
-}
-
-export function getHourlyVisits(): Promise<{ items: HourlyVisitCount[] }> {
-  return request<{ items: HourlyVisitCount[] }>('/api/visits/hourly');
 }
 
 export function getCustomerSummary(): Promise<CustomerSummary> {
