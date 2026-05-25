@@ -63,7 +63,7 @@ The API does not include an authentication layer. This service is intended to ru
 
 ## Seed Data
 
-On startup, the backend ensures a baseline demo dataset exists: `customer-001` through `customer-010`, with visit counts from `1` to `10`. The seed is idempotent; if those customers already exist, the app does not insert duplicate visits.
+On startup, the backend ensures a baseline demo dataset exists: `customer-001` through `customer-010`, each with a generated visit count between `1` and `100`. The seed is idempotent; if those customers already exist, the app does not insert duplicate visits.
 
 To reset the persisted SQLite database and reload the baseline dataset from scratch:
 

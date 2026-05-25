@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from random import Random
 
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, select
@@ -9,9 +10,12 @@ from app.models import CustomerRecord
 from app.services.visit_service import VisitService
 
 
+BASE_CUSTOMER_IDS = tuple(
+    f"customer-{customer_number:03d}" for customer_number in range(1, 11)
+)
+BASE_VISIT_COUNTS = tuple(Random("tree-nation-base-data").sample(range(1, 101), 10))
 BASE_CUSTOMER_VISIT_COUNTS = tuple(
-    (f"customer-{customer_number:03d}", customer_number)
-    for customer_number in range(1, 11)
+    zip(BASE_CUSTOMER_IDS, BASE_VISIT_COUNTS, strict=True)
 )
 BASE_DATA_START = datetime(2026, 5, 25, 9, 0, tzinfo=timezone.utc)
 

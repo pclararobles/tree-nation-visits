@@ -7,6 +7,7 @@ from sqlmodel import Session, select
 
 from app.main import create_app
 from app.models import CustomerRecord, VisitRecord
+from app.services.base_data_service import BASE_CUSTOMER_VISIT_COUNTS
 
 
 def test_app_initialization_runs_database_migrations(tmp_path):
@@ -234,22 +235,19 @@ def test_app_seeds_base_customer_dataset_idempotently(tmp_path):
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["total_visits"] == 55
-    assert payload["total_trees_planted"] == 7
+    expected_visit_counts = sorted(
+        (visit_count for _, visit_count in BASE_CUSTOMER_VISIT_COUNTS),
+        reverse=True,
+    )
+    assert payload["total_visits"] == sum(expected_visit_counts)
+    assert payload["total_trees_planted"] == sum(
+        visit_count // 5 for visit_count in expected_visit_counts
+    )
 
     customers = payload["items"]
     assert len(customers) == 10
-    assert [customer["visit_count"] for customer in customers] == [
-        10,
-        9,
-        8,
-        7,
-        6,
-        5,
-        4,
-        3,
-        2,
-        1,
-    ]
-    assert customers[0]["customer_id"] == "customer-010"
-    assert customers[-1]["customer_id"] == "customer-001"
+    visit_counts = [customer["visit_count"] for customer in customers]
+    assert visit_counts == expected_visit_counts
+    assert len(set(visit_counts)) == 10
+    assert all(1 <= visit_count <= 100 for visit_count in visit_counts)
+    assert any(customer["trees_planted"] > 2 for customer in customers)

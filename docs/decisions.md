@@ -29,7 +29,7 @@ Trees are calculated per customer, then summed for dashboard totals. For example
 
 ## Base Dataset
 
-The service seeds 10 baseline customers for a useful first-run dashboard: `customer-001` through `customer-010`, with visit counts from `1` to `10`. The seed runs during app startup but is idempotent; existing baseline customers are skipped so restarts do not duplicate visits.
+The service seeds 10 baseline customers for a useful first-run dashboard: `customer-001` through `customer-010`, each with a generated visit count between `1` and `100`. The seed runs during app startup but is idempotent; existing baseline customers are skipped so restarts do not duplicate visits.
 
 ## Frontend
 
