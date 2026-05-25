@@ -22,7 +22,8 @@ def test_app_initialization_runs_database_migrations(tmp_path):
             "SELECT version_num FROM alembic_version"
         ).fetchone()
         customer_columns = {
-            row[1]: row[5] for row in connection.execute("PRAGMA table_info(customers)")
+            row[1]: row[5]
+            for row in connection.execute("PRAGMA table_info(customers)")
         }
         visit_foreign_keys = [
             row
@@ -75,12 +76,11 @@ def test_visit_events_update_customer_state_and_tree_milestones(tmp_path):
     response = client.get("/api/customers/customer-123")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "customer_id": "customer-123",
-        "visit_count": 4,
-        "trees_planted": 1,
-        "last_connection_at": "2026-05-25T10:30:00+00:00",
-    }
+    payload = response.json()
+    assert payload["customer_id"] == "customer-123"
+    assert payload["visit_count"] == 4
+    assert payload["trees_planted"] == 1
+    assert payload["last_connection_at"] == "2026-05-25T10:30:00+00:00"
 
 
 def test_customer_external_identifier_is_separate_from_internal_primary_key(tmp_path):
@@ -130,12 +130,12 @@ def test_hourly_aggregation_counts_all_visits_across_customers(tmp_path):
     response = client.get("/api/visits/hourly")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "items": [
-            {"hour": "2026-05-25T09:00:00+00:00", "visit_count": 2},
-            {"hour": "2026-05-25T10:00:00+00:00", "visit_count": 1},
-        ]
-    }
+    items = response.json()["items"]
+    assert len(items) == 2
+    assert items[0]["hour"] == "2026-05-25T09:00:00+00:00"
+    assert items[0]["visit_count"] == 2
+    assert items[1]["hour"] == "2026-05-25T10:00:00+00:00"
+    assert items[1]["visit_count"] == 1
 
 
 def test_customer_summary_uses_customer_specific_tree_counts(tmp_path):
@@ -157,24 +157,24 @@ def test_customer_summary_uses_customer_specific_tree_counts(tmp_path):
     response = client.get("/api/customers")
 
     assert response.status_code == 200
-    assert response.json() == {
-        "total_visits": 10,
-        "total_trees_planted": 1,
-        "items": [
-            {
-                "customer_id": "alice",
-                "visit_count": 7,
-                "trees_planted": 1,
-                "last_connection_at": "2026-05-25T09:06:00+00:00",
-            },
-            {
-                "customer_id": "bob",
-                "visit_count": 3,
-                "trees_planted": 0,
-                "last_connection_at": "2026-05-25T10:02:00+00:00",
-            },
-        ],
-    }
+    payload = response.json()
+    assert payload["total_visits"] == 10
+    assert payload["total_trees_planted"] == 1
+
+    customers = payload["items"]
+    assert len(customers) == 2
+
+    alice = customers[0]
+    assert alice["customer_id"] == "alice"
+    assert alice["visit_count"] == 7
+    assert alice["trees_planted"] == 1
+    assert alice["last_connection_at"] == "2026-05-25T09:06:00+00:00"
+
+    bob = customers[1]
+    assert bob["customer_id"] == "bob"
+    assert bob["visit_count"] == 3
+    assert bob["trees_planted"] == 0
+    assert bob["last_connection_at"] == "2026-05-25T10:02:00+00:00"
 
 
 def test_visit_event_defaults_to_current_time_when_device_omits_timestamp(tmp_path):
