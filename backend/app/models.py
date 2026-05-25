@@ -32,6 +32,12 @@ class CustomerState(BaseModel):
         return value.isoformat()
 
 
+class CustomerSummary(BaseModel):
+    total_visits: int
+    total_trees_planted: int
+    items: list[CustomerState]
+
+
 class HourlyVisitCount(BaseModel):
     hour: datetime
     visit_count: int

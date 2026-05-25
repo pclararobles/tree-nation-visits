@@ -12,6 +12,12 @@ export type CustomerState = {
   last_connection_at: string;
 };
 
+export type CustomerSummary = {
+  total_visits: number;
+  total_trees_planted: number;
+  items: CustomerState[];
+};
+
 export type VisitEventInput = {
   customer_id: string;
   occurred_at?: string;
@@ -36,6 +42,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export function getHourlyVisits(): Promise<{ items: HourlyVisitCount[] }> {
   return request<{ items: HourlyVisitCount[] }>('/api/visits/hourly');
+}
+
+export function getCustomerSummary(): Promise<CustomerSummary> {
+  return request<CustomerSummary>('/api/customers');
 }
 
 export function recordVisit(input: VisitEventInput): Promise<CustomerState> {

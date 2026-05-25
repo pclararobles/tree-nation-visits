@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Activity, CalendarClock, RefreshCw, Send, Sprout, Trees } from 'lucide-react';
+import { Activity, RefreshCw, Send, Sprout, Trees, Users } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -8,7 +8,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { CustomerState, HourlyVisitCount, getCustomer, getHourlyVisits, recordVisit } from './api';
+import { CustomerSummary, HourlyVisitCount, getCustomerSummary, getHourlyVisits, recordVisit } from './api';
 
 type ChartPoint = {
   hour: string;
@@ -67,9 +67,9 @@ function useElementSize<T extends HTMLElement>() {
 
 export function App() {
   const [hourlyVisits, setHourlyVisits] = useState<HourlyVisitCount[]>([]);
+  const [customerSummary, setCustomerSummary] = useState<CustomerSummary | null>(null);
   const [customerId, setCustomerId] = useState('customer-123');
   const [occurredAt, setOccurredAt] = useState('');
-  const [customer, setCustomer] = useState<CustomerState | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,33 +77,21 @@ export function App() {
   const [chartRef, chartSize] = useElementSize<HTMLDivElement>();
 
   const chartData = useMemo(() => hourlyVisits.map(toChartPoint), [hourlyVisits]);
-  const totalVisits = useMemo(
-    () => hourlyVisits.reduce((total, item) => total + item.visit_count, 0),
-    [hourlyVisits],
-  );
-  const peakHour = useMemo(
-    () => hourlyVisits.reduce<HourlyVisitCount | null>((peak, item) => {
-      if (!peak || item.visit_count > peak.visit_count) {
-        return item;
-      }
-      return peak;
-    }, null),
-    [hourlyVisits],
-  );
+  const customers = customerSummary?.items ?? [];
+  const totalVisits = customerSummary?.total_visits ?? 0;
+  const totalTreesPlanted = customerSummary?.total_trees_planted ?? 0;
 
-  async function refreshDashboard(nextCustomerId = customerId) {
+  async function refreshDashboard() {
     setIsLoading(true);
     setError(null);
 
     try {
-      const [hourlyResponse, customerResponse] = await Promise.all([
+      const [hourlyResponse, summaryResponse] = await Promise.all([
         getHourlyVisits(),
-        nextCustomerId.trim()
-          ? getCustomer(nextCustomerId.trim()).catch(() => null)
-          : Promise.resolve(null),
+        getCustomerSummary(),
       ]);
       setHourlyVisits(hourlyResponse.items);
-      setCustomer(customerResponse);
+      setCustomerSummary(summaryResponse);
     } catch (currentError) {
       setError(currentError instanceof Error ? currentError.message : 'Unable to refresh dashboard');
     } finally {
@@ -129,9 +117,8 @@ export function App() {
         customer_id: trimmedCustomerId,
         occurred_at: toApiTimestamp(occurredAt),
       });
-      setCustomer(updatedCustomer);
       setNotice(`Recorded visit ${updatedCustomer.visit_count} for ${updatedCustomer.customer_id}`);
-      await refreshDashboard(trimmedCustomerId);
+      await refreshDashboard();
     } catch (currentError) {
       setError(currentError instanceof Error ? currentError.message : 'Unable to record visit');
     } finally {
@@ -163,10 +150,10 @@ export function App() {
           <strong>{totalVisits}</strong>
         </article>
         <article className="metric-panel">
-          <CalendarClock size={20} aria-hidden="true" />
-          <span>Peak hour</span>
-          <strong>{peakHour ? peakHour.visit_count : 0}</strong>
-          <small>{peakHour ? formatHour(peakHour.hour) : 'No data'}</small>
+          <Trees size={20} aria-hidden="true" />
+          <span>Trees planted</span>
+          <strong>{totalTreesPlanted}</strong>
+          <small>Calculated per customer</small>
         </article>
         <article className="metric-panel image-panel">
           <img
@@ -242,29 +229,37 @@ export function App() {
           <div className="customer-readout">
             <div className="section-heading compact">
               <div>
-                <p className="eyebrow">Customer</p>
-                <h2>Current state</h2>
+                <p className="eyebrow">Customers</p>
+                <h2>Visit totals</h2>
               </div>
-              <Trees size={20} aria-hidden="true" />
+              <Users size={20} aria-hidden="true" />
             </div>
 
-            {customer ? (
-              <dl>
-                <div>
-                  <dt>Visits</dt>
-                  <dd>{customer.visit_count}</dd>
-                </div>
-                <div>
-                  <dt>Trees</dt>
-                  <dd>{customer.trees_planted}</dd>
-                </div>
-                <div>
-                  <dt>Last connection</dt>
-                  <dd>{formatHour(customer.last_connection_at)}</dd>
-                </div>
-              </dl>
+            {customers.length > 0 ? (
+              <table className="customer-table" aria-label="Customer visit totals">
+                <thead>
+                  <tr>
+                    <th scope="col">Customer</th>
+                    <th scope="col">Visits</th>
+                    <th scope="col">Trees</th>
+                    <th scope="col">Last visit</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {customers.map((customer) => (
+                    <tr key={customer.customer_id}>
+                      <td className="customer-id" title={customer.customer_id}>
+                        {customer.customer_id}
+                      </td>
+                      <td>{customer.visit_count}</td>
+                      <td>{customer.trees_planted}</td>
+                      <td>{formatHour(customer.last_connection_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             ) : (
-              <p className="muted">No customer selected.</p>
+              <p className="muted">No customers recorded yet.</p>
             )}
           </div>
 

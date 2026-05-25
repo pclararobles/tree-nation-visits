@@ -43,8 +43,7 @@ button {
 .metric-panel,
 .side-panel,
 form,
-.customer-readout,
-dl div {
+.customer-readout {
   display: flex;
 }
 
@@ -138,8 +137,7 @@ button:disabled {
 .metric-panel small,
 .muted,
 .message,
-label span,
-dt {
+label span {
   color: #5a695f;
 }
 
@@ -210,8 +208,8 @@ dt {
 }
 
 .side-panel {
-  width: min(360px, 100%);
-  flex: 0 0 360px;
+  width: min(430px, 100%);
+  flex: 0 0 430px;
   flex-direction: column;
   gap: 18px;
   padding: 18px;
@@ -220,6 +218,58 @@ dt {
 form,
 .customer-readout {
   flex-direction: column;
+}
+
+.customer-readout {
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.customer-table {
+  width: 100%;
+  min-width: 390px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.88rem;
+}
+
+.customer-table th,
+.customer-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid #e1e7df;
+  text-align: right;
+  vertical-align: top;
+}
+
+.customer-table th {
+  color: #5a695f;
+  font-size: 0.76rem;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.customer-table th:first-child,
+.customer-table td:first-child {
+  width: 34%;
+  padding-left: 0;
+  text-align: left;
+}
+
+.customer-table th:last-child,
+.customer-table td:last-child {
+  width: 30%;
+  padding-right: 0;
+}
+
+.customer-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.customer-id {
+  overflow: hidden;
+  font-weight: 760;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 label {
@@ -246,36 +296,6 @@ input {
 input:focus {
   border-color: #2f7a52;
   outline: 3px solid rgba(47, 122, 82, 0.16);
-}
-
-dl {
-  display: grid;
-  gap: 10px;
-  margin: 0;
-}
-
-dl div {
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #e1e7df;
-}
-
-dl div:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
-}
-
-dt {
-  font-size: 0.86rem;
-}
-
-dd {
-  margin: 0;
-  max-width: 58%;
-  text-align: right;
-  font-weight: 760;
 }
 
 .message {
@@ -322,7 +342,4 @@ dd {
     height: 320px;
   }
 
-  dd {
-    max-width: 62%;
-  }
 }

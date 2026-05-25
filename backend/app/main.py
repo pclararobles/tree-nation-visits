@@ -7,7 +7,7 @@ from pathlib import Path
 from fastapi import Depends, FastAPI, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.models import CustomerState, HourlyVisitCounts, VisitEvent
+from app.models import CustomerState, CustomerSummary, HourlyVisitCounts, VisitEvent
 from app.repository import VisitRepository
 
 
@@ -54,6 +54,16 @@ def create_app(
     ) -> CustomerState:
         occurred_at = event.occurred_at or datetime.now(timezone.utc)
         return repo.record_visit(event.customer_id, occurred_at)
+
+    @app.get(
+        "/api/customers",
+        response_model=CustomerSummary,
+        tags=["customers"],
+    )
+    def list_customers(
+        repo: VisitRepository = Depends(get_repository),
+    ) -> CustomerSummary:
+        return repo.customer_summary()
 
     @app.get(
         "/api/customers/{customer_id}",

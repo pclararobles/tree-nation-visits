@@ -68,6 +68,45 @@ def test_hourly_aggregation_counts_all_visits_across_customers(tmp_path):
     }
 
 
+def test_customer_summary_uses_customer_specific_tree_counts(tmp_path):
+    app = create_app(database_path=tmp_path / "visits.db", visits_per_tree=5)
+    client = TestClient(app)
+
+    events = [
+        *[("alice", f"2026-05-25T09:{minute:02d}:00Z") for minute in range(7)],
+        *[("bob", f"2026-05-25T10:{minute:02d}:00Z") for minute in range(3)],
+    ]
+
+    for customer_id, occurred_at in events:
+        response = client.post(
+            "/api/visits",
+            json={"customer_id": customer_id, "occurred_at": occurred_at},
+        )
+        assert response.status_code == 201
+
+    response = client.get("/api/customers")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "total_visits": 10,
+        "total_trees_planted": 1,
+        "items": [
+            {
+                "customer_id": "alice",
+                "visit_count": 7,
+                "trees_planted": 1,
+                "last_connection_at": "2026-05-25T09:06:00+00:00",
+            },
+            {
+                "customer_id": "bob",
+                "visit_count": 3,
+                "trees_planted": 0,
+                "last_connection_at": "2026-05-25T10:02:00+00:00",
+            },
+        ],
+    }
+
+
 def test_visit_event_defaults_to_current_time_when_device_omits_timestamp(tmp_path):
     app = create_app(database_path=tmp_path / "visits.db", visits_per_tree=5)
     client = TestClient(app)

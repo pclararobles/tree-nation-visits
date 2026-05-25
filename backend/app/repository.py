@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from app.models import CustomerState, HourlyVisitCount
+from app.models import CustomerState, CustomerSummary, HourlyVisitCount
 
 
 @dataclass(frozen=True)
@@ -114,6 +114,34 @@ class VisitRepository:
             trees_planted=row["trees_planted"],
             last_connection_at=datetime.fromisoformat(row["last_connection_at"]),
         )
+
+    def customer_summary(self) -> CustomerSummary:
+        customers = self.list_customers()
+        return CustomerSummary(
+            total_visits=sum(customer.visit_count for customer in customers),
+            total_trees_planted=sum(customer.trees_planted for customer in customers),
+            items=customers,
+        )
+
+    def list_customers(self) -> list[CustomerState]:
+        with self._connect() as connection:
+            rows = connection.execute(
+                """
+                SELECT customer_id, visit_count, trees_planted, last_connection_at
+                FROM customers
+                ORDER BY visit_count DESC, customer_id ASC
+                """
+            ).fetchall()
+
+        return [
+            CustomerState(
+                customer_id=row["customer_id"],
+                visit_count=row["visit_count"],
+                trees_planted=row["trees_planted"],
+                last_connection_at=datetime.fromisoformat(row["last_connection_at"]),
+            )
+            for row in rows
+        ]
 
     def hourly_visit_counts(
         self,
