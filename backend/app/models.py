@@ -1,51 +1,20 @@
-from datetime import datetime, timezone
-from typing import Annotated
+from __future__ import annotations
 
-from pydantic import BaseModel, Field, field_serializer, field_validator
-
-
-CustomerId = Annotated[str, Field(min_length=1, max_length=128)]
+from sqlmodel import Field, SQLModel
 
 
-class VisitEvent(BaseModel):
-    customer_id: CustomerId
-    occurred_at: datetime | None = None
+class CustomerRecord(SQLModel, table=True):
+    __tablename__ = "customers"
 
-    @field_validator("occurred_at")
-    @classmethod
-    def normalize_occurred_at(cls, value: datetime | None) -> datetime | None:
-        if value is None:
-            return None
-        if value.tzinfo is None:
-            return value.replace(tzinfo=timezone.utc)
-        return value.astimezone(timezone.utc)
+    customer_id: str = Field(primary_key=True, max_length=128)
+    visit_count: int = Field(nullable=False)
+    trees_planted: int = Field(nullable=False)
+    last_connection_at: str = Field(nullable=False)
 
 
-class CustomerState(BaseModel):
-    customer_id: str
-    visit_count: int
-    trees_planted: int
-    last_connection_at: datetime
+class VisitRecord(SQLModel, table=True):
+    __tablename__ = "visits"
 
-    @field_serializer("last_connection_at")
-    def serialize_last_connection_at(self, value: datetime) -> str:
-        return value.isoformat()
-
-
-class CustomerSummary(BaseModel):
-    total_visits: int
-    total_trees_planted: int
-    items: list[CustomerState]
-
-
-class HourlyVisitCount(BaseModel):
-    hour: datetime
-    visit_count: int
-
-    @field_serializer("hour")
-    def serialize_hour(self, value: datetime) -> str:
-        return value.isoformat()
-
-
-class HourlyVisitCounts(BaseModel):
-    items: list[HourlyVisitCount]
+    id: int | None = Field(default=None, primary_key=True)
+    customer_id: str = Field(foreign_key="customers.customer_id", nullable=False)
+    occurred_at: str = Field(nullable=False)

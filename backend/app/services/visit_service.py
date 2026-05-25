@@ -6,8 +6,8 @@ from sqlalchemy import func
 from sqlalchemy.engine import Engine
 from sqlmodel import Session, select
 
-from app.database import CustomerRecord, VisitRecord
-from app.models import CustomerState, CustomerSummary, HourlyVisitCount, VisitEvent
+from app.models import CustomerRecord, VisitRecord
+from app.schemas import CustomerState, CustomerSummary, HourlyVisitCount, VisitEvent
 
 
 class VisitService:

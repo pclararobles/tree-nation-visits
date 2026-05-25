@@ -5,7 +5,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.engine import Engine
 
-from app.models import CustomerState, CustomerSummary, HourlyVisitCounts, VisitEvent
+from app.schemas import CustomerState, CustomerSummary, HourlyVisitCounts, VisitEvent
 from app.services.visit_service import VisitService
 
 
