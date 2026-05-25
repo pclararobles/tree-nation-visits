@@ -59,6 +59,8 @@ Open http://localhost:5173. The frontend expects the API at `http://localhost:80
 
 Once the backend is running, the interactive OpenAPI documentation is hosted at http://localhost:8000/docs.
 
+The API does not include an authentication layer. For this assessment app, the service is intended to run in a controlled local/reviewer environment, so auth would add complexity without supporting the requested behavior.
+
 ## Seed Data
 
 On startup, the backend ensures a baseline dataset exists for reviewers: `customer-001` through `customer-010`, with visit counts from `1` to `10`. The seed is idempotent; if those customers already exist, the app does not insert duplicate visits.
