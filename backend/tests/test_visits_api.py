@@ -1,41 +1,36 @@
-import sqlite3
 from datetime import datetime, timezone
 
+from alembic.runtime.migration import MigrationContext
 from fastapi.testclient import TestClient
+from sqlalchemy import inspect
+from sqlmodel import Session, select
 
 from app.main import create_app
+from app.models import CustomerRecord, VisitRecord
 
 
 def test_app_initialization_runs_database_migrations(tmp_path):
-    database_path = tmp_path / "visits.db"
+    app = create_app(database_path=tmp_path / "visits.db", visits_per_tree=5)
 
-    create_app(database_path=database_path, visits_per_tree=5)
+    inspector = inspect(app.state.database_engine)
+    customer_columns = {
+        column["name"]: column for column in inspector.get_columns("customers")
+    }
+    visit_foreign_keys = inspector.get_foreign_keys("visits")
 
-    with sqlite3.connect(database_path) as connection:
-        tables = {
-            row[0]
-            for row in connection.execute(
-                "SELECT name FROM sqlite_master WHERE type = 'table'"
-            )
-        }
-        version = connection.execute(
-            "SELECT version_num FROM alembic_version"
-        ).fetchone()
-        customer_columns = {
-            row[1]: row[5]
-            for row in connection.execute("PRAGMA table_info(customers)")
-        }
-        visit_foreign_keys = [
-            row
-            for row in connection.execute("PRAGMA foreign_key_list(visits)")
-            if row[2] == "customers"
-        ]
+    with app.state.database_engine.connect() as connection:
+        context = MigrationContext.configure(connection)
+        current_revision = context.get_current_revision()
 
-    assert {"alembic_version", "customers", "visits"}.issubset(tables)
-    assert version == ("0001_create_visit_tables",)
-    assert customer_columns["id"] == 1
-    assert customer_columns["external_customer_id"] == 0
-    assert visit_foreign_keys[0][3:5] == ("customer_id", "id")
+    assert {"alembic_version", "customers", "visits"}.issubset(
+        inspector.get_table_names()
+    )
+    assert current_revision == "0001_create_visit_tables"
+    assert customer_columns["id"]["primary_key"] == 1
+    assert customer_columns["external_customer_id"]["primary_key"] == 0
+    assert visit_foreign_keys[0]["constrained_columns"] == ["customer_id"]
+    assert visit_foreign_keys[0]["referred_table"] == "customers"
+    assert visit_foreign_keys[0]["referred_columns"] == ["id"]
 
 
 def test_app_reuses_singleton_database_engine(tmp_path):
@@ -84,8 +79,7 @@ def test_visit_events_update_customer_state_and_tree_milestones(tmp_path):
 
 
 def test_customer_external_identifier_is_separate_from_internal_primary_key(tmp_path):
-    database_path = tmp_path / "visits.db"
-    app = create_app(database_path=database_path, visits_per_tree=3)
+    app = create_app(database_path=tmp_path / "visits.db", visits_per_tree=3)
     client = TestClient(app)
 
     response = client.post(
@@ -94,20 +88,17 @@ def test_customer_external_identifier_is_separate_from_internal_primary_key(tmp_
     )
 
     assert response.status_code == 201
-    with sqlite3.connect(database_path) as connection:
-        customer = connection.execute(
-            """
-            SELECT id, external_customer_id
-            FROM customers
-            WHERE external_customer_id = ?
-            """,
-            ("customer-123",),
-        ).fetchone()
-        visit = connection.execute("SELECT customer_id FROM visits").fetchone()
+    with Session(app.state.database_engine) as session:
+        customer = session.exec(
+            select(CustomerRecord).where(
+                CustomerRecord.external_customer_id == "customer-123"
+            )
+        ).one()
+        visit = session.exec(select(VisitRecord)).one()
 
-    assert isinstance(customer[0], int)
-    assert customer[1] == "customer-123"
-    assert visit == (customer[0],)
+    assert isinstance(customer.id, int)
+    assert customer.external_customer_id == "customer-123"
+    assert visit.customer_id == customer.id
 
 
 def test_hourly_aggregation_counts_all_visits_across_customers(tmp_path):
