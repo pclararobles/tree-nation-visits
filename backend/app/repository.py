@@ -1,119 +1,71 @@
 from __future__ import annotations
 
-import sqlite3
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+from sqlalchemy import func
+from sqlalchemy.engine import Engine
+from sqlmodel import Session, select
+
+from app.database import (
+    CustomerRecord,
+    VisitRecord,
+    create_database_engine,
+    run_migrations,
+)
 from app.models import CustomerState, CustomerSummary, HourlyVisitCount
 
 
-@dataclass(frozen=True)
+@dataclass
 class VisitRepository:
     database_path: Path
     visits_per_tree: int
+    engine: Engine = field(init=False)
 
     def __post_init__(self) -> None:
         if self.visits_per_tree < 1:
             raise ValueError("visits_per_tree must be greater than zero")
         self.database_path.parent.mkdir(parents=True, exist_ok=True)
-        self.initialize()
-
-    def initialize(self) -> None:
-        with self._connect() as connection:
-            connection.execute("PRAGMA journal_mode=WAL")
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS customers (
-                    customer_id TEXT PRIMARY KEY,
-                    visit_count INTEGER NOT NULL,
-                    trees_planted INTEGER NOT NULL,
-                    last_connection_at TEXT NOT NULL
-                )
-                """
-            )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS visits (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    customer_id TEXT NOT NULL,
-                    occurred_at TEXT NOT NULL,
-                    FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
-                )
-                """
-            )
-            connection.execute(
-                """
-                CREATE INDEX IF NOT EXISTS idx_visits_occurred_at
-                ON visits(occurred_at)
-                """
-            )
+        run_migrations(self.database_path)
+        self.engine = create_database_engine(self.database_path)
 
     def record_visit(self, customer_id: str, occurred_at: datetime) -> CustomerState:
         normalized_time = self._normalize_datetime(occurred_at)
         occurred_at_text = self._serialize_datetime(normalized_time)
 
-        with self._connect() as connection:
-            connection.execute(
-                "INSERT INTO visits (customer_id, occurred_at) VALUES (?, ?)",
-                (customer_id, occurred_at_text),
-            )
-            existing = connection.execute(
-                """
-                SELECT visit_count
-                FROM customers
-                WHERE customer_id = ?
-                """,
-                (customer_id,),
-            ).fetchone()
-
-            visit_count = (existing["visit_count"] if existing else 0) + 1
-            trees_planted = visit_count // self.visits_per_tree
-
-            connection.execute(
-                """
-                INSERT INTO customers (
-                    customer_id,
-                    visit_count,
-                    trees_planted,
-                    last_connection_at
+        with Session(self.engine) as session:
+            customer = session.get(CustomerRecord, customer_id)
+            if customer is None:
+                customer = CustomerRecord(
+                    customer_id=customer_id,
+                    visit_count=0,
+                    trees_planted=0,
+                    last_connection_at=occurred_at_text,
                 )
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(customer_id) DO UPDATE SET
-                    visit_count = excluded.visit_count,
-                    trees_planted = excluded.trees_planted,
-                    last_connection_at = excluded.last_connection_at
-                """,
-                (customer_id, visit_count, trees_planted, occurred_at_text),
-            )
 
-        return CustomerState(
-            customer_id=customer_id,
-            visit_count=visit_count,
-            trees_planted=trees_planted,
-            last_connection_at=normalized_time,
-        )
+            customer.visit_count += 1
+            customer.trees_planted = customer.visit_count // self.visits_per_tree
+            customer.last_connection_at = occurred_at_text
+
+            session.add(customer)
+            session.add(
+                VisitRecord(
+                    customer_id=customer_id,
+                    occurred_at=occurred_at_text,
+                )
+            )
+            session.commit()
+            session.refresh(customer)
+
+            return self._to_customer_state(customer)
 
     def get_customer(self, customer_id: str) -> CustomerState | None:
-        with self._connect() as connection:
-            row = connection.execute(
-                """
-                SELECT customer_id, visit_count, trees_planted, last_connection_at
-                FROM customers
-                WHERE customer_id = ?
-                """,
-                (customer_id,),
-            ).fetchone()
-
-        if row is None:
-            return None
-
-        return CustomerState(
-            customer_id=row["customer_id"],
-            visit_count=row["visit_count"],
-            trees_planted=row["trees_planted"],
-            last_connection_at=datetime.fromisoformat(row["last_connection_at"]),
-        )
+        with Session(self.engine) as session:
+            customer = session.get(CustomerRecord, customer_id)
+            if customer is None:
+                return None
+            return self._to_customer_state(customer)
 
     def customer_summary(self) -> CustomerSummary:
         customers = self.list_customers()
@@ -124,72 +76,58 @@ class VisitRepository:
         )
 
     def list_customers(self) -> list[CustomerState]:
-        with self._connect() as connection:
-            rows = connection.execute(
-                """
-                SELECT customer_id, visit_count, trees_planted, last_connection_at
-                FROM customers
-                ORDER BY visit_count DESC, customer_id ASC
-                """
-            ).fetchall()
+        statement = select(CustomerRecord).order_by(
+            CustomerRecord.visit_count.desc(),
+            CustomerRecord.customer_id.asc(),
+        )
 
-        return [
-            CustomerState(
-                customer_id=row["customer_id"],
-                visit_count=row["visit_count"],
-                trees_planted=row["trees_planted"],
-                last_connection_at=datetime.fromisoformat(row["last_connection_at"]),
-            )
-            for row in rows
-        ]
+        with Session(self.engine) as session:
+            customers = session.exec(statement).all()
+
+        return [self._to_customer_state(customer) for customer in customers]
 
     def hourly_visit_counts(
         self,
         start: datetime | None = None,
         end: datetime | None = None,
     ) -> list[HourlyVisitCount]:
-        query = [
-            """
-            SELECT
-                substr(occurred_at, 1, 13) || ':00:00+00:00' AS hour,
-                COUNT(*) AS visit_count
-            FROM visits
-            """
-        ]
-        parameters: list[str] = []
-        filters: list[str] = []
+        hour = (func.substr(VisitRecord.occurred_at, 1, 13) + ":00:00+00:00").label(
+            "hour"
+        )
+        statement = select(hour, func.count(VisitRecord.id)).select_from(VisitRecord)
 
         if start is not None:
-            filters.append("occurred_at >= ?")
-            parameters.append(self._serialize_datetime(self._normalize_datetime(start)))
+            statement = statement.where(
+                VisitRecord.occurred_at
+                >= self._serialize_datetime(self._normalize_datetime(start))
+            )
         if end is not None:
-            filters.append("occurred_at < ?")
-            parameters.append(self._serialize_datetime(self._normalize_datetime(end)))
-        if filters:
-            query.append("WHERE " + " AND ".join(filters))
+            statement = statement.where(
+                VisitRecord.occurred_at
+                < self._serialize_datetime(self._normalize_datetime(end))
+            )
 
-        query.append(
-            """
-            GROUP BY hour
-            ORDER BY hour ASC
-            """
-        )
+        statement = statement.group_by(hour).order_by(hour.asc())
 
-        with self._connect() as connection:
-            rows = connection.execute("\n".join(query), parameters).fetchall()
+        with Session(self.engine) as session:
+            rows = session.execute(statement).all()
 
         return [
             HourlyVisitCount(
-                hour=datetime.fromisoformat(row["hour"]),
-                visit_count=row["visit_count"],
+                hour=datetime.fromisoformat(row[0]),
+                visit_count=row[1],
             )
             for row in rows
         ]
 
-    def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.database_path)
-        connection.row_factory = sqlite3.Row
-        return connection
+    @staticmethod
+    def _to_customer_state(customer: CustomerRecord) -> CustomerState:
+        return CustomerState(
+            customer_id=customer.customer_id,
+            visit_count=customer.visit_count,
+            trees_planted=customer.trees_planted,
+            last_connection_at=datetime.fromisoformat(customer.last_connection_at),
+        )
 
     @staticmethod
     def _normalize_datetime(value: datetime) -> datetime:
@@ -199,4 +137,4 @@ class VisitRepository:
 
     @staticmethod
     def _serialize_datetime(value: datetime) -> str:
-        return value.replace(microsecond=0).isoformat()
+        return value.isoformat()
