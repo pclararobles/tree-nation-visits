@@ -1,6 +1,6 @@
 # Tree Nation Visit Tracker
 
-A small full-stack implementation of the assessment in `Tech Interview Assessment Spec.pdf`.
+A small full-stack implementation of the assessment in [Tech Interview Assessment Spec.pdf](Tech%20Interview%20Assessment%20Spec.pdf).
 
 - `backend/`: FastAPI service with SQLite persistence and Docker support.
 - `frontend/`: React + TypeScript + Vite dashboard for hourly visit aggregates.
