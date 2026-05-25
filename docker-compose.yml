@@ -4,10 +4,10 @@ services:
       context: ./backend
       target: runtime
     environment:
-      DATABASE_PATH: /data/visits.db
-      VISITS_PER_TREE: 5
+      DATABASE_PATH: ${DATABASE_PATH}
+      VISITS_PER_TREE: ${VISITS_PER_TREE}
     ports:
-      - "8000:8000"
+      - "${API_PORT}:8000"
     volumes:
       - tree_nation_data:/data
     healthcheck:
@@ -21,9 +21,9 @@ services:
     build:
       context: ./frontend
       args:
-        VITE_API_BASE_URL: http://localhost:8000
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
     ports:
-      - "5173:80"
+      - "${FRONTEND_PORT}:80"
     depends_on:
       api:
         condition: service_healthy
@@ -33,8 +33,8 @@ services:
       context: ./backend
       target: test
     environment:
-      DATABASE_PATH: /tmp/test-visits.db
-      VISITS_PER_TREE: 5
+      DATABASE_PATH: ${TEST_DATABASE_PATH}
+      VISITS_PER_TREE: ${VISITS_PER_TREE}
     profiles:
       - test
 

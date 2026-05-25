@@ -15,10 +15,18 @@ docker compose up --build -d
 
 The frontend runs at http://localhost:5173, the API runs at http://localhost:8000, and the OpenAPI docs are available at http://localhost:8000/docs.
 
-Configuration:
+Configuration lives in the root `.env` file, which Docker Compose reads automatically. The tracked `.env.example` file documents the available values, but Compose does not use it.
 
-- `DATABASE_PATH`: SQLite file path. Docker Compose uses `/data/visits.db`.
-- `VISITS_PER_TREE`: number of visits that equal one planted tree. Default is `5`.
+Default values:
+
+- `API_PORT=8000`: host port for the FastAPI backend.
+- `FRONTEND_PORT=5173`: host port for the frontend.
+- `DATABASE_PATH=/data/visits.db`: SQLite file path inside the backend container.
+- `TEST_DATABASE_PATH=/tmp/test-visits.db`: SQLite file path used by the test container.
+- `VISITS_PER_TREE=5`: number of visits that equal one planted tree.
+- `VITE_API_BASE_URL=http://localhost:8000`: API URL baked into the frontend build.
+
+After changing `.env`, run `docker compose up --build -d` again. The rebuild matters for `VITE_API_BASE_URL` because Vite embeds it when the frontend image is built.
 
 ## Run Backend Tests
 
