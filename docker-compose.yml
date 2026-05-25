@@ -1,0 +1,31 @@
+services:
+  api:
+    build:
+      context: .
+      target: runtime
+    environment:
+      DATABASE_PATH: /data/visits.db
+      VISITS_PER_TREE: 5
+    ports:
+      - "8000:8000"
+    volumes:
+      - tree_nation_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/visits/hourly', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  test:
+    build:
+      context: .
+      target: test
+    environment:
+      DATABASE_PATH: /tmp/test-visits.db
+      VISITS_PER_TREE: 5
+    profiles:
+      - test
+
+volumes:
+  tree_nation_data:
