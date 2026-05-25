@@ -42,7 +42,7 @@ def receive_visit(
 def list_customers(
     engine: Engine = Depends(get_database_engine),
 ) -> CustomerSummary:
-    return VisitService.customer_summary(engine)
+    return VisitService.get_customer_summary(engine)
 
 
 @router.get(
@@ -73,4 +73,6 @@ def get_hourly_visits(
     end: datetime | None = Query(default=None),
     engine: Engine = Depends(get_database_engine),
 ) -> HourlyVisitCounts:
-    return HourlyVisitCounts(items=VisitService.hourly_visit_counts(engine, start, end))
+    return HourlyVisitCounts(
+        items=VisitService.get_hourly_visit_counts(engine, start, end)
+    )

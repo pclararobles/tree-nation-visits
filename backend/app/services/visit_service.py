@@ -73,7 +73,7 @@ class VisitService:
             return cls._to_customer_state(customer)
 
     @classmethod
-    def customer_summary(cls, engine: Engine) -> CustomerSummary:
+    def get_customer_summary(cls, engine: Engine) -> CustomerSummary:
         statement = select(CustomerRecord).order_by(
             CustomerRecord.visit_count.desc(),
             CustomerRecord.customer_id.asc(),
@@ -91,7 +91,7 @@ class VisitService:
         )
 
     @classmethod
-    def hourly_visit_counts(
+    def get_hourly_visit_counts(
         cls,
         engine: Engine,
         start: datetime | None = None,
