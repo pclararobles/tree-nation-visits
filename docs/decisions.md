@@ -8,7 +8,7 @@ The backend uses SQLModel for table models and Alembic for migrations. This keep
 
 ## Backend Organization
 
-FastAPI route handlers live in `view.py`, while business logic is organized in stateless service classes under `app/services`. The services use class methods and interact directly with the SQLModel table models, keeping the code clear without adding a repository layer that the current scope does not need.
+FastAPI route handlers live in `views.py`, while business logic is organized in stateless service classes under `app/services`. The services use class methods and interact directly with the SQLModel table models, keeping the code clear without adding a repository layer that the current scope does not need.
 
 ## API Shape
 

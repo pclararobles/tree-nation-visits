@@ -12,7 +12,7 @@ from app.config import (
 )
 from app.services.base_data_service import BaseDataService
 from app.services.database_service import DatabaseService
-from app.view import router
+from app.views import router
 
 
 def create_app(
