@@ -6,6 +6,8 @@ SQLite is used because the service is small, the write model is simple, and a Do
 
 The backend uses SQLModel for table models and Alembic for migrations. This keeps persistence explicit and production-friendly while still being lightweight for a small service. Customers have an internal integer primary key, while the API-facing `customer_id` is stored as a unique external customer identifier.
 
+`trees_planted` is **denormalized** on the customer row rather than computed from the visits table on every read. This avoids counting visits each time the dashboard loads. The trade-off is a write-time update, but that update already happens inside the same transaction that records the visit, so the cost is negligible.
+
 ## Backend Organization
 
 FastAPI route handlers live in `views.py`, while business logic is organized in stateless service classes under `app/services`. The services use class methods and interact directly with the SQLModel table models.
@@ -21,6 +23,8 @@ The API exposes four core operations:
 
 The device can omit `occurred_at`; the service then records the server receive time in UTC. The timestamp is accepted for tests, replay, and simple backfills.
 
+There is no per-customer hourly endpoint. The current `GET /api/visits/hourly` aggregates across all customers, which is enough for the public impact page. A per-customer breakdown would add API surface without a concrete use case, so it was left out to avoid scope creep.
+
 ## Tree Calculation
 
 `trees_planted` is derived from `visit_count // VISITS_PER_TREE`. This makes the behavior idempotent with respect to counter updates inside a single transaction and avoids tracking a separate milestone table for this small scope.
@@ -33,8 +37,10 @@ The service seeds 10 baseline customers for a useful first-run dashboard: `custo
 
 ## Frontend
 
-The frontend is a separate React + TypeScript + Vite app. The public route shows aggregate impact metrics only, while `/admin` contains operational sections for the debug visit form and the registered customers list. This keeps customer-level data and internal actions out of the public view.
+The frontend is a separate React + TypeScript + Vite app. The public route shows aggregate impact metrics — total trees, total visits, active customers, and a hourly visit bar chart — while `/admin` contains operational sections for the debug visit form and the registered customers list. This split keeps the public page narrative (what, how, who, when) and operational data (per-customer counters, write actions) separate.
+
+The hourly chart lives on the public page rather than admin because it is an aggregate, read-only metric. Per-customer data stays behind `/admin` where write actions also live.
 
 The admin route is not protected by an authentication module in this codebase. In production, `/admin` would sit behind authentication or another access-control layer. For this service, the route separation documents the intended boundary without adding auth complexity.
 
-The app is Dockerized with a production-style Nginx image, while the standard local Vite workflow remains available for development.
+The app is Dockerized with a production-style Nginx image.
