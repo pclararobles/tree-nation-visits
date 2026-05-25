@@ -1,67 +1,115 @@
 # Tree Nation Visit Tracker
 
-A small full-stack service for tracking customer visits and converting visit milestones into planted tree counters. The original product brief is available in [Tech Interview Assessment Spec.pdf](Tech%20Interview%20Assessment%20Spec.pdf).
+A full-stack service for tracking customer visits and converting visit milestones into planted tree counters. The original product brief is available in [Tech Interview Assessment Spec.pdf](Tech%20Interview%20Assessment%20Spec.pdf).
 
-- `backend/`: FastAPI service with SQLModel, Alembic migrations, SQLite persistence, and Docker support.
-- `frontend/`: React + TypeScript + Vite app with a public impact page and an admin dashboard.
+## Tech Stack
 
-## Run With Docker
+- **Backend**: FastAPI, SQLModel, Alembic, SQLite
+- **Frontend**: React, TypeScript, Vite
+- **Infrastructure**: Docker Compose
 
-From the repository root, create the real environment file from the example and start the stack:
+## Prerequisites
+
+- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
+
+## Getting Started
+
+From the repository root:
 
 ```bash
 cp .env.example .env
 docker compose up --build -d
 ```
 
-The public frontend runs at http://localhost:5173, the admin dashboard runs at http://localhost:5173/admin, the API runs at http://localhost:8000, and the OpenAPI docs are available at http://localhost:8000/docs.
+| Service | URL |
+|---|---|
+| Public frontend | http://localhost:5173 |
+| Admin dashboard | http://localhost:5173/admin |
+| API | http://localhost:8000 |
+| OpenAPI docs | http://localhost:8000/docs |
 
-Configuration lives in the root `.env` file, which Docker Compose reads automatically. The tracked `.env.example` file documents the available values, but Compose does not use it. The real `.env` file is intentionally ignored by git.
+## Configuration
 
-Default values:
+The `.env` file is read automatically by Docker Compose. The tracked `.env.example` documents the available values.
 
-- `API_PORT=8000`: host port for the FastAPI backend.
-- `FRONTEND_PORT=5173`: host port for the frontend.
-- `DATABASE_PATH=/data/visits.db`: SQLite file path inside the backend container.
-- `TEST_DATABASE_PATH=/tmp/test-visits.db`: SQLite file path used by the test container.
-- `VISITS_PER_TREE=5`: number of visits that equal one planted tree.
-- `VITE_API_BASE_URL=http://localhost:8000`: API URL baked into the frontend build.
+| Variable | Default | Description |
+|---|---|---|
+| `API_PORT` | `8000` | Host port for the API |
+| `FRONTEND_PORT` | `5173` | Host port for the frontend |
+| `DATABASE_PATH` | `/data/visits.db` | SQLite file inside the backend container |
+| `TEST_DATABASE_PATH` | `/tmp/test-visits.db` | SQLite file used by tests |
+| `VISITS_PER_TREE` | `5` | Number of visits per tree milestone |
+| `VITE_API_BASE_URL` | `http://localhost:8000` | API URL baked into the frontend build |
 
-After changing `.env`, run `docker compose up --build -d` again. The rebuild matters for `VITE_API_BASE_URL` because Vite embeds it when the frontend image is built.
+After changing `.env`, run `docker compose up --build -d` again. The rebuild is required for `VITE_API_BASE_URL` because Vite embeds it at build time.
 
-## Run Backend Tests
+## API Reference
+
+### `GET /api/customers` — Customer summary
+
+Returns aggregate metrics and per-customer state.
+
+```json
+{
+  "total_visits": 505,
+  "total_trees_planted": 101,
+  "items": [
+    {
+      "customer_id": "customer-001",
+      "visit_count": 87,
+      "trees_planted": 17,
+      "last_connection_at": "2026-05-25T10:30:00+00:00"
+    }
+  ]
+}
+```
+
+### `GET /api/customers/{customer_id}` — Single customer
+
+Returns the state for one customer. Responds with `404` if not found.
+
+```json
+{
+  "customer_id": "customer-001",
+  "visit_count": 87,
+  "trees_planted": 17,
+  "last_connection_at": "2026-05-25T10:30:00+00:00"
+}
+```
+
+### `POST /api/visits` — Record a visit
+
+```json
+// Request
+{ "customer_id": "customer-001", "occurred_at": "2026-05-25T12:00:00Z" }
+
+// Response (201)
+{ "customer_id": "customer-001", "visit_count": 88, "trees_planted": 17, "last_connection_at": "2026-05-25T12:00:00+00:00" }
+```
+
+`occurred_at` is optional; defaults to the server's current UTC time.
+
+### `GET /api/visits/hourly` — Visits aggregated per hour
+
+Groups all visits by UTC hour. Supports optional `start` and `end` query parameters (ISO 8601).
+
+```json
+{
+  "items": [
+    { "hour": "2026-05-25T09:00:00+00:00", "visit_count": 2 },
+    { "hour": "2026-05-25T10:00:00+00:00", "visit_count": 1 }
+  ]
+}
+```
+
+## Tests
 
 ```bash
 docker compose --profile test build test
 docker compose --profile test run --rm test
 ```
 
-The test service uses `TEST_DATABASE_PATH` from `.env` and does not need a local Python environment.
-
-## Frontend: Run Locally
-
-Docker is the easiest path for running the full stack, but local frontend development still works normally from the repository root:
-
-```bash
-npm --prefix frontend install
-npm --prefix frontend run dev
-```
-
-Run the backend in another terminal with:
-
-```bash
-docker compose up --build -d api
-```
-
-Open http://localhost:5173. The frontend expects the API at `http://localhost:8000` by default.
-
-The public page shows only aggregate impact metrics. Operational data and actions live under `/admin`: a debug form for adding customer visits and the registered customers list.
-
-## API Documentation
-
-Once the backend is running, the interactive OpenAPI documentation is hosted at http://localhost:8000/docs.
-
-The API and `/admin` frontend route do not include an authentication layer. In a production deployment, the admin section would be protected; for this service, the admin UI is separated from the public page without adding an auth module.
+The test service uses `TEST_DATABASE_PATH` from `.env` and does not need a local Python installation.
 
 ## Seed Data
 
@@ -73,15 +121,6 @@ To reset the persisted SQLite database and reload the baseline dataset from scra
 docker compose down -v
 docker compose up --build -d
 ```
-
-## Assumptions
-
-- `customer_id` is the external identifier provided by the device and exposed by the API. Internally, customers use an integer primary key.
-- Visit timestamps are stored and returned in UTC.
-- A tree milestone is calculated as `floor(customer visits / VISITS_PER_TREE)`.
-- SQLite is sufficient for this scope and is persisted through a Docker volume.
-- Database schema changes are managed with Alembic migrations over SQLModel table models.
-- The frontend is a separate app that can run through Docker or the local Vite dev server. Public aggregate metrics live at `/`, while operational views live at `/admin`.
 
 ## Architecture
 
@@ -96,4 +135,14 @@ flowchart LR
     API --> Docs["OpenAPI at /docs"]
 ```
 
-See [docs/decisions.md](docs/decisions.md) for the short decision document.
+## Assumptions
+
+- `customer_id` is the external identifier provided by the device and exposed by the API. Internally, customers use an integer primary key.
+- Visit timestamps are stored and returned in UTC.
+- A tree milestone is calculated as `floor(customer visits / VISITS_PER_TREE)`.
+- SQLite is sufficient for this scope and is persisted through a Docker volume.
+- Schema changes are managed with Alembic migrations over SQLModel table models.
+
+## Decision Document
+
+See [docs/decisions.md](docs/decisions.md) for the technical choices behind this project.
