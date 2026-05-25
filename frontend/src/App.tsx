@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { Activity, Leaf, RefreshCw, Send, Sprout, Trees, Users } from 'lucide-react';
-import { CustomerSummary, getCustomerSummary, recordVisit } from './api';
+import { Activity, BarChart3, Leaf, RefreshCw, Send, Sprout, Trees, Users } from 'lucide-react';
+import { CustomerSummary, getCustomerSummary, getHourlyVisits, HourlyVisitCount, recordVisit } from './api';
 
 function formatHour(value: string) {
   return new Intl.DateTimeFormat(undefined, {
@@ -10,6 +10,17 @@ function formatHour(value: string) {
     minute: '2-digit',
   }).format(new Date(value));
 }
+
+function formatHourDate(value: string) {
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
+}
+
+
 
 function toApiTimestamp(value: string) {
   return value ? new Date(value).toISOString() : undefined;
@@ -47,18 +58,27 @@ type DashboardProps = {
 
 function PublicDashboard({ onNavigate }: DashboardProps) {
   const [customerSummary, setCustomerSummary] = useState<CustomerSummary | null>(null);
+  const [hourlyData, setHourlyData] = useState<HourlyVisitCount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const totalVisits = customerSummary?.total_visits ?? 0;
   const totalTreesPlanted = customerSummary?.total_trees_planted ?? 0;
+  const activeCustomers = customerSummary?.items.length ?? 0;
+
+  const maxHourly = hourlyData.reduce((m, h) => Math.max(m, h.visit_count), 0);
 
   async function refreshSummary() {
     setIsLoading(true);
     setError(null);
 
     try {
-      setCustomerSummary(await getCustomerSummary());
+      const [summary, hourly] = await Promise.all([
+        getCustomerSummary(),
+        getHourlyVisits(),
+      ]);
+      setCustomerSummary(summary);
+      setHourlyData(hourly.items);
     } catch (currentError) {
       setError(currentError instanceof Error ? currentError.message : 'Unable to refresh impact summary');
     } finally {
@@ -103,23 +123,48 @@ function PublicDashboard({ onNavigate }: DashboardProps) {
 
       <section className="summary-band" aria-label="Public impact summary">
         <article className="metric-panel">
-          <Trees size={20} aria-hidden="true" />
-          <span>Trees planted</span>
-          <strong>{totalTreesPlanted}</strong>
-          <small>Calculated from customer milestones</small>
-        </article>
-        <article className="metric-panel">
           <Activity size={20} aria-hidden="true" />
           <span>Total visits</span>
           <strong>{totalVisits}</strong>
           <small>Aggregated across all customers</small>
         </article>
         <article className="metric-panel">
-          <Leaf size={20} aria-hidden="true" />
-          <span>Public view</span>
-          <strong>Live</strong>
-          <small>Aggregate impact only</small>
+          <Users size={20} aria-hidden="true" />
+          <span>Active customers</span>
+          <strong>{activeCustomers}</strong>
+          <small>Partners contributing to reforestation</small>
         </article>
+      </section>
+
+      <section className="hourly-section" aria-label="Hourly visit activity">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Visit activity</p>
+            <h2>Visits per hour</h2>
+          </div>
+          <BarChart3 size={20} aria-hidden="true" />
+        </div>
+
+        {hourlyData.length > 0 ? (
+          <div className="hourly-chart">
+            <div className="hourly-scroll">
+              {hourlyData.map((h) => (
+                <div key={h.hour} className="hourly-row">
+                  <span className="hourly-label">{formatHourDate(h.hour)}</span>
+                  <div className="hourly-bar-track">
+                    <div
+                      className="hourly-bar"
+                      style={{ width: maxHourly > 0 ? `${(h.visit_count / maxHourly) * 100}%` : '0%' }}
+                    />
+                  </div>
+                  <span className="hourly-count">{h.visit_count}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <p className="muted">No visit activity recorded yet.</p>
+        )}
       </section>
 
       {error && <p className="message error">{error}</p>}

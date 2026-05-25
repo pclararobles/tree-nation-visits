@@ -49,3 +49,20 @@ export function recordVisit(input: VisitEventInput): Promise<CustomerState> {
 export function getCustomer(customerId: string): Promise<CustomerState> {
   return request<CustomerState>(`/api/customers/${encodeURIComponent(customerId)}`);
 }
+
+export type HourlyVisitCount = {
+  hour: string;
+  visit_count: number;
+};
+
+export type HourlyVisitCounts = {
+  items: HourlyVisitCount[];
+};
+
+export function getHourlyVisits(start?: string, end?: string): Promise<HourlyVisitCounts> {
+  const params = new URLSearchParams();
+  if (start) params.set('start', start);
+  if (end) params.set('end', end);
+  const qs = params.toString();
+  return request<HourlyVisitCounts>(`/api/visits/hourly${qs ? `?${qs}` : ''}`);
+}
