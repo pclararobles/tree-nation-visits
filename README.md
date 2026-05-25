@@ -10,7 +10,7 @@ A small full-stack implementation of the assessment in [Tech Interview Assessmen
 From the repository root:
 
 ```bash
-docker compose up --build
+docker compose up --build -d
 ```
 
 The frontend runs at http://localhost:5173, the API runs at http://localhost:8000, and the OpenAPI docs are available at http://localhost:8000/docs.
@@ -38,7 +38,7 @@ npm --prefix frontend run dev
 Run the backend in another terminal with:
 
 ```bash
-docker compose up --build api
+docker compose up --build -d api
 ```
 
 Open http://localhost:5173. The frontend expects the API at `http://localhost:8000` by default.
