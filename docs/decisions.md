@@ -33,4 +33,8 @@ The service seeds 10 baseline customers for a useful first-run dashboard: `custo
 
 ## Frontend
 
-The frontend is a separate React + TypeScript + Vite app. It uses Recharts for the hourly visits visualization, shows total visits and planted trees, and lists per-customer visit counters. It is Dockerized with a production-style Nginx image, while the standard local Vite workflow remains available for development.
+The frontend is a separate React + TypeScript + Vite app. The public route shows aggregate impact metrics only, while `/admin` contains three operational sections: a visits-per-hour graph, a debug form for adding customer visits, and the registered customers list. This keeps customer-level and shop-operation data out of the public view.
+
+The admin route is not protected by an authentication module in this codebase. In production, `/admin` would sit behind authentication or another access-control layer. For this service, the route separation documents the intended boundary without adding auth complexity.
+
+The app is Dockerized with a production-style Nginx image, while the standard local Vite workflow remains available for development.

@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Activity, RefreshCw, Send, Sprout, Trees, Users } from 'lucide-react';
+import { Activity, BarChart3, Leaf, RefreshCw, Send, Sprout, Trees, Users } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -37,6 +37,10 @@ function toApiTimestamp(value: string) {
   return value ? new Date(value).toISOString() : undefined;
 }
 
+function getCurrentView() {
+  return window.location.pathname === '/admin' ? 'admin' : 'public';
+}
+
 function useElementSize<T extends HTMLElement>() {
   const ref = useRef<T | null>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -66,6 +70,114 @@ function useElementSize<T extends HTMLElement>() {
 }
 
 export function App() {
+  const [currentView, setCurrentView] = useState(getCurrentView);
+
+  useEffect(() => {
+    const handleNavigation = () => setCurrentView(getCurrentView());
+
+    window.addEventListener('popstate', handleNavigation);
+    return () => window.removeEventListener('popstate', handleNavigation);
+  }, []);
+
+  function navigateTo(path: string) {
+    window.history.pushState(null, '', path);
+    setCurrentView(getCurrentView());
+  }
+
+  return currentView === 'admin' ? (
+    <AdminDashboard onNavigate={navigateTo} />
+  ) : (
+    <PublicDashboard onNavigate={navigateTo} />
+  );
+}
+
+type DashboardProps = {
+  onNavigate: (path: string) => void;
+};
+
+function PublicDashboard({ onNavigate }: DashboardProps) {
+  const [customerSummary, setCustomerSummary] = useState<CustomerSummary | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const totalVisits = customerSummary?.total_visits ?? 0;
+  const totalTreesPlanted = customerSummary?.total_trees_planted ?? 0;
+
+  async function refreshSummary() {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      setCustomerSummary(await getCustomerSummary());
+    } catch (currentError) {
+      setError(currentError instanceof Error ? currentError.message : 'Unable to refresh impact summary');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void refreshSummary();
+  }, []);
+
+  return (
+    <main className="app-shell public-shell">
+      <header className="topbar">
+        <div>
+          <p className="eyebrow">Tree Nation</p>
+          <h1>Forest Impact</h1>
+        </div>
+        <nav className="top-actions" aria-label="Main navigation">
+          <button className="icon-button" type="button" onClick={() => void refreshSummary()} disabled={isLoading}>
+            <RefreshCw size={18} aria-hidden="true" />
+            <span>Refresh</span>
+          </button>
+          <button className="icon-button" type="button" onClick={() => onNavigate('/admin')}>
+            <BarChart3 size={18} aria-hidden="true" />
+            <span>Admin</span>
+          </button>
+        </nav>
+      </header>
+
+      <section className="public-hero" aria-label="Tree planting impact">
+        <img
+          src="https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=1400&q=80"
+          alt="Forest canopy"
+        />
+        <div className="hero-content">
+          <p className="eyebrow">Live contribution</p>
+          <strong>{totalTreesPlanted}</strong>
+          <span>Trees planted from customer visits</span>
+        </div>
+      </section>
+
+      <section className="summary-band" aria-label="Public impact summary">
+        <article className="metric-panel">
+          <Trees size={20} aria-hidden="true" />
+          <span>Trees planted</span>
+          <strong>{totalTreesPlanted}</strong>
+          <small>Calculated from customer milestones</small>
+        </article>
+        <article className="metric-panel">
+          <Activity size={20} aria-hidden="true" />
+          <span>Total visits</span>
+          <strong>{totalVisits}</strong>
+          <small>Aggregated across all customers</small>
+        </article>
+        <article className="metric-panel">
+          <Leaf size={20} aria-hidden="true" />
+          <span>Public view</span>
+          <strong>Live</strong>
+          <small>Aggregate impact only</small>
+        </article>
+      </section>
+
+      {error && <p className="message error">{error}</p>}
+    </main>
+  );
+}
+
+function AdminDashboard({ onNavigate }: DashboardProps) {
   const [hourlyVisits, setHourlyVisits] = useState<HourlyVisitCount[]>([]);
   const [customerSummary, setCustomerSummary] = useState<CustomerSummary | null>(null);
   const [customerId, setCustomerId] = useState('customer-123');
@@ -135,12 +247,18 @@ export function App() {
       <header className="topbar">
         <div>
           <p className="eyebrow">Tree Nation</p>
-          <h1>Visit Tracker</h1>
+          <h1>Admin Dashboard</h1>
         </div>
-        <button className="icon-button" type="button" onClick={() => void refreshDashboard()} disabled={isLoading}>
-          <RefreshCw size={18} aria-hidden="true" />
-          <span>Refresh</span>
-        </button>
+        <nav className="top-actions" aria-label="Main navigation">
+          <button className="icon-button" type="button" onClick={() => onNavigate('/')}>
+            <Leaf size={18} aria-hidden="true" />
+            <span>Public</span>
+          </button>
+          <button className="icon-button" type="button" onClick={() => void refreshDashboard()} disabled={isLoading}>
+            <RefreshCw size={18} aria-hidden="true" />
+            <span>Refresh</span>
+          </button>
+        </nav>
       </header>
 
       <section className="summary-band" aria-label="Visit summary">
@@ -168,7 +286,7 @@ export function App() {
           <div className="section-heading">
             <div>
               <p className="eyebrow">Aggregated per hour</p>
-              <h2>Shop visits</h2>
+              <h2>Visits per hour</h2>
             </div>
             <span className="status-pill">{isLoading ? 'Loading' : `${chartData.length} hours`}</span>
           </div>
@@ -200,8 +318,8 @@ export function App() {
           <form onSubmit={handleSubmit}>
             <div className="section-heading compact">
               <div>
-                <p className="eyebrow">Device event</p>
-                <h2>Record visit</h2>
+                <p className="eyebrow">Debug tools</p>
+                <h2>Add customer visit</h2>
               </div>
               <Send size={20} aria-hidden="true" />
             </div>
@@ -222,15 +340,15 @@ export function App() {
 
             <button className="primary-button" type="submit" disabled={isSubmitting}>
               <Sprout size={18} aria-hidden="true" />
-              <span>{isSubmitting ? 'Recording' : 'Record visit'}</span>
+              <span>{isSubmitting ? 'Adding' : 'Add visit'}</span>
             </button>
           </form>
 
           <div className="customer-readout">
             <div className="section-heading compact">
               <div>
-                <p className="eyebrow">Customers</p>
-                <h2>Visit totals</h2>
+                <p className="eyebrow">Registered customers</p>
+                <h2>Customer list</h2>
               </div>
               <Users size={20} aria-hidden="true" />
             </div>

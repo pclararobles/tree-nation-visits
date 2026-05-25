@@ -3,7 +3,7 @@
 A small full-stack service for tracking customer visits and converting visit milestones into planted tree counters. The original product brief is available in [Tech Interview Assessment Spec.pdf](Tech%20Interview%20Assessment%20Spec.pdf).
 
 - `backend/`: FastAPI service with SQLModel, Alembic migrations, SQLite persistence, and Docker support.
-- `frontend/`: React + TypeScript + Vite dashboard for visit totals, trees planted, hourly visit aggregates, and customer-level counters.
+- `frontend/`: React + TypeScript + Vite app with a public impact page and an admin dashboard.
 
 ## Run With Docker
 
@@ -14,7 +14,7 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
-The frontend runs at http://localhost:5173, the API runs at http://localhost:8000, and the OpenAPI docs are available at http://localhost:8000/docs.
+The public frontend runs at http://localhost:5173, the admin dashboard runs at http://localhost:5173/admin, the API runs at http://localhost:8000, and the OpenAPI docs are available at http://localhost:8000/docs.
 
 Configuration lives in the root `.env` file, which Docker Compose reads automatically. The tracked `.env.example` file documents the available values, but Compose does not use it. The real `.env` file is intentionally ignored by git.
 
@@ -55,11 +55,13 @@ docker compose up --build -d api
 
 Open http://localhost:5173. The frontend expects the API at `http://localhost:8000` by default.
 
+The public page shows only aggregate impact metrics. Operational data and actions live under `/admin`: a visits-per-hour graph, a debug form for adding customer visits, and the registered customers list.
+
 ## API Documentation
 
 Once the backend is running, the interactive OpenAPI documentation is hosted at http://localhost:8000/docs.
 
-The API does not include an authentication layer. This service is intended to run in a controlled internal environment, so auth would add complexity without supporting the current product behavior.
+The API and `/admin` frontend route do not include an authentication layer. In a production deployment, the admin section would be protected; for this service, the admin UI is separated from the public page without adding an auth module.
 
 ## Seed Data
 
@@ -79,7 +81,7 @@ docker compose up --build -d
 - A tree milestone is calculated as `floor(customer visits / VISITS_PER_TREE)`.
 - SQLite is sufficient for this scope and is persisted through a Docker volume.
 - Database schema changes are managed with Alembic migrations over SQLModel table models.
-- The frontend is a separate app that can run through Docker or the local Vite dev server.
+- The frontend is a separate app that can run through Docker or the local Vite dev server. Public aggregate metrics live at `/`, while operational views live at `/admin`.
 
 ## Architecture
 

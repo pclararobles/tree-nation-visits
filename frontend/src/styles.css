@@ -37,6 +37,7 @@ button {
 }
 
 .topbar,
+.top-actions,
 .section-heading,
 .summary-band,
 .workspace-grid,
@@ -52,6 +53,13 @@ form,
   justify-content: space-between;
   gap: 20px;
   margin-bottom: 24px;
+}
+
+.top-actions {
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .eyebrow {
@@ -76,6 +84,10 @@ h1 {
 
 h2 {
   font-size: 1.18rem;
+}
+
+.public-shell {
+  max-width: 1080px;
 }
 
 .icon-button,
@@ -113,6 +125,60 @@ button:disabled {
   align-items: stretch;
   gap: 14px;
   margin-bottom: 18px;
+}
+
+.public-hero {
+  position: relative;
+  min-height: 380px;
+  margin-bottom: 18px;
+  overflow: hidden;
+  border: 1px solid #cfd9cf;
+  border-radius: 8px;
+  background: #203226;
+}
+
+.public-hero img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.public-hero::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(90deg, rgba(15, 31, 21, 0.82), rgba(15, 31, 21, 0.28));
+}
+
+.hero-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-height: 380px;
+  width: min(560px, 100%);
+  flex-direction: column;
+  justify-content: center;
+  padding: 34px;
+  color: white;
+}
+
+.hero-content .eyebrow {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.hero-content strong {
+  display: block;
+  font-size: clamp(5rem, 16vw, 10rem);
+  line-height: 0.88;
+}
+
+.hero-content span {
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: clamp(1.1rem, 3vw, 1.6rem);
+  font-weight: 760;
 }
 
 .metric-panel,
@@ -336,6 +402,23 @@ input:focus {
   .topbar {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .top-actions {
+    justify-content: stretch;
+  }
+
+  .top-actions .icon-button {
+    flex: 1;
+  }
+
+  .public-hero,
+  .hero-content {
+    min-height: 320px;
+  }
+
+  .hero-content {
+    padding: 24px;
   }
 
   .chart-frame {
