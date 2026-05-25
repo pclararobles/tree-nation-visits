@@ -7,9 +7,10 @@ A small full-stack implementation of the assessment in [Tech Interview Assessmen
 
 ## Run With Docker
 
-From the repository root:
+From the repository root, create the real environment file from the example and start the stack:
 
 ```bash
+cp .env.example .env
 docker compose up --build -d
 ```
 
