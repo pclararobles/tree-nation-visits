@@ -10,7 +10,11 @@ from app.models import CustomerRecord, VisitRecord
 
 
 def test_app_initialization_runs_database_migrations(tmp_path):
-    app = create_app(database_path=tmp_path / "visits.db", visits_per_tree=5)
+    app = create_app(
+        database_path=tmp_path / "visits.db",
+        visits_per_tree=5,
+        seed_base_data=False,
+    )
 
     inspector = inspect(app.state.database_engine)
     customer_columns = {
@@ -34,7 +38,11 @@ def test_app_initialization_runs_database_migrations(tmp_path):
 
 
 def test_app_reuses_singleton_database_engine(tmp_path):
-    app = create_app(database_path=tmp_path / "visits.db", visits_per_tree=5)
+    app = create_app(
+        database_path=tmp_path / "visits.db",
+        visits_per_tree=5,
+        seed_base_data=False,
+    )
     client = TestClient(app)
     engine = app.state.database_engine
 
@@ -45,7 +53,11 @@ def test_app_reuses_singleton_database_engine(tmp_path):
 
 
 def test_visit_events_update_customer_state_and_tree_milestones(tmp_path):
-    app = create_app(database_path=tmp_path / "visits.db", visits_per_tree=3)
+    app = create_app(
+        database_path=tmp_path / "visits.db",
+        visits_per_tree=3,
+        seed_base_data=False,
+    )
     client = TestClient(app)
 
     event_times = [
@@ -79,7 +91,11 @@ def test_visit_events_update_customer_state_and_tree_milestones(tmp_path):
 
 
 def test_customer_external_identifier_is_separate_from_internal_primary_key(tmp_path):
-    app = create_app(database_path=tmp_path / "visits.db", visits_per_tree=3)
+    app = create_app(
+        database_path=tmp_path / "visits.db",
+        visits_per_tree=3,
+        seed_base_data=False,
+    )
     client = TestClient(app)
 
     response = client.post(
@@ -102,7 +118,11 @@ def test_customer_external_identifier_is_separate_from_internal_primary_key(tmp_
 
 
 def test_hourly_aggregation_counts_all_visits_across_customers(tmp_path):
-    app = create_app(database_path=tmp_path / "visits.db", visits_per_tree=2)
+    app = create_app(
+        database_path=tmp_path / "visits.db",
+        visits_per_tree=2,
+        seed_base_data=False,
+    )
     client = TestClient(app)
 
     events = [
@@ -130,7 +150,11 @@ def test_hourly_aggregation_counts_all_visits_across_customers(tmp_path):
 
 
 def test_customer_summary_uses_customer_specific_tree_counts(tmp_path):
-    app = create_app(database_path=tmp_path / "visits.db", visits_per_tree=5)
+    app = create_app(
+        database_path=tmp_path / "visits.db",
+        visits_per_tree=5,
+        seed_base_data=False,
+    )
     client = TestClient(app)
 
     events = [
@@ -169,7 +193,11 @@ def test_customer_summary_uses_customer_specific_tree_counts(tmp_path):
 
 
 def test_visit_event_defaults_to_current_time_when_device_omits_timestamp(tmp_path):
-    app = create_app(database_path=tmp_path / "visits.db", visits_per_tree=5)
+    app = create_app(
+        database_path=tmp_path / "visits.db",
+        visits_per_tree=5,
+        seed_base_data=False,
+    )
     client = TestClient(app)
 
     before = datetime.now(timezone.utc)
@@ -182,10 +210,46 @@ def test_visit_event_defaults_to_current_time_when_device_omits_timestamp(tmp_pa
 
 
 def test_customer_not_found_returns_404(tmp_path):
-    app = create_app(database_path=tmp_path / "visits.db", visits_per_tree=5)
+    app = create_app(
+        database_path=tmp_path / "visits.db",
+        visits_per_tree=5,
+        seed_base_data=False,
+    )
     client = TestClient(app)
 
     response = client.get("/api/customers/missing")
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Customer not found"
+
+
+def test_app_seeds_base_customer_dataset_idempotently(tmp_path):
+    database_path = tmp_path / "visits.db"
+
+    app = create_app(database_path=database_path, visits_per_tree=5)
+    create_app(database_path=database_path, visits_per_tree=5)
+    client = TestClient(app)
+
+    response = client.get("/api/customers")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total_visits"] == 55
+    assert payload["total_trees_planted"] == 7
+
+    customers = payload["items"]
+    assert len(customers) == 10
+    assert [customer["visit_count"] for customer in customers] == [
+        10,
+        9,
+        8,
+        7,
+        6,
+        5,
+        4,
+        3,
+        2,
+        1,
+    ]
+    assert customers[0]["customer_id"] == "customer-010"
+    assert customers[-1]["customer_id"] == "customer-001"

@@ -10,6 +10,7 @@ from app.config import (
     DEFAULT_DATABASE_PATH,
     DEFAULT_VISITS_PER_TREE,
 )
+from app.services.base_data_service import BaseDataService
 from app.services.database_service import DatabaseService
 from app.view import router
 
@@ -18,6 +19,7 @@ def create_app(
     database_path: str | Path = DEFAULT_DATABASE_PATH,
     visits_per_tree: int = DEFAULT_VISITS_PER_TREE,
     allowed_origins: list[str] | None = None,
+    seed_base_data: bool = True,
 ) -> FastAPI:
     app = FastAPI(
         title="Tree Nation Visit Tracker",
@@ -25,6 +27,9 @@ def create_app(
         description="Tracks shop visits and converts configurable visit milestones into planted tree counters.",
     )
     engine = DatabaseService.create_engine(database_path)
+    if seed_base_data:
+        BaseDataService.seed_base_customer_data(engine, visits_per_tree)
+
     app.state.database_engine = engine
     app.state.visits_per_tree = visits_per_tree
 
