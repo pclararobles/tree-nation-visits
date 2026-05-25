@@ -1,15 +1,11 @@
 from __future__ import annotations
 
-import sqlite3
 from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
 from sqlmodel import Field, SQLModel, create_engine
 from sqlalchemy.engine import Engine
-
-
-BASELINE_REVISION = "0001_create_visit_tables"
 
 
 class CustomerRecord(SQLModel, table=True):
@@ -47,21 +43,4 @@ def run_migrations(database_path: Path) -> None:
         str(Path(__file__).parent / "migrations"),
     )
     config.set_main_option("sqlalchemy.url", database_url(database_path))
-    if _has_legacy_schema_without_version(database_path):
-        command.stamp(config, BASELINE_REVISION)
     command.upgrade(config, "head")
-
-
-def _has_legacy_schema_without_version(database_path: Path) -> bool:
-    if not database_path.exists():
-        return False
-
-    with sqlite3.connect(database_path) as connection:
-        tables = {
-            row[0]
-            for row in connection.execute(
-                "SELECT name FROM sqlite_master WHERE type = 'table'"
-            )
-        }
-
-    return "alembic_version" not in tables and {"customers", "visits"}.issubset(tables)

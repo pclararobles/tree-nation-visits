@@ -26,63 +26,6 @@ def test_app_initialization_runs_database_migrations(tmp_path):
     assert version == ("0001_create_visit_tables",)
 
 
-def test_app_initialization_stamps_existing_legacy_schema(tmp_path):
-    database_path = tmp_path / "visits.db"
-    with sqlite3.connect(database_path) as connection:
-        connection.execute(
-            """
-            CREATE TABLE customers (
-                customer_id TEXT PRIMARY KEY,
-                visit_count INTEGER NOT NULL,
-                trees_planted INTEGER NOT NULL,
-                last_connection_at TEXT NOT NULL
-            )
-            """
-        )
-        connection.execute(
-            """
-            CREATE TABLE visits (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                customer_id TEXT NOT NULL,
-                occurred_at TEXT NOT NULL,
-                FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
-            )
-            """
-        )
-        connection.execute(
-            "CREATE INDEX idx_visits_occurred_at ON visits(occurred_at)"
-        )
-        connection.execute(
-            """
-            INSERT INTO customers (
-                customer_id,
-                visit_count,
-                trees_planted,
-                last_connection_at
-            )
-            VALUES (?, ?, ?, ?)
-            """,
-            ("legacy-customer", 5, 1, "2026-05-25T09:10:00+00:00"),
-        )
-
-    app = create_app(database_path=database_path, visits_per_tree=5)
-    client = TestClient(app)
-
-    assert client.get("/api/customers/legacy-customer").json() == {
-        "customer_id": "legacy-customer",
-        "visit_count": 5,
-        "trees_planted": 1,
-        "last_connection_at": "2026-05-25T09:10:00+00:00",
-    }
-
-    with sqlite3.connect(database_path) as connection:
-        version = connection.execute(
-            "SELECT version_num FROM alembic_version"
-        ).fetchone()
-
-    assert version == ("0001_create_visit_tables",)
-
-
 def test_visit_events_update_customer_state_and_tree_milestones(tmp_path):
     app = create_app(database_path=tmp_path / "visits.db", visits_per_tree=3)
     client = TestClient(app)
