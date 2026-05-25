@@ -1,6 +1,9 @@
 # Tree Nation Visit Tracker
 
-FastAPI service for the assessment: a device sends shop visit events, the service tracks each customer's visits, stores their last connection time, increments planted trees after every configurable number of visits, and serves a simple hourly visits frontend.
+A small full-stack implementation of the assessment in `Tech Interview Assessment Spec.pdf`.
+
+- `backend/`: FastAPI service with SQLite persistence and Docker support.
+- `frontend/`: React + TypeScript + Vite dashboard for hourly visit aggregates.
 
 ## Run With Docker
 
@@ -8,29 +11,37 @@ FastAPI service for the assessment: a device sends shop visit events, the servic
 docker compose up --build
 ```
 
-Open http://localhost:8000 for the frontend or http://localhost:8000/docs for OpenAPI documentation.
+The frontend runs at http://localhost:5173, the API runs at http://localhost:8000, and the OpenAPI docs are available at http://localhost:8000/docs.
 
 Configuration:
 
 - `DATABASE_PATH`: SQLite file path. Docker Compose uses `/data/visits.db`.
 - `VISITS_PER_TREE`: number of visits that equal one planted tree. Default is `5`.
 
-## Run Tests With Docker
+## Backend: Run Tests With Docker
 
 ```bash
 docker compose --profile test run --rm test
 ```
 
-The Docker path above is the intended way to run and verify the assessment deliverable.
+## Frontend: Run Locally
+
+Docker is the easiest path for reviewers, but local frontend development still works normally:
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open http://localhost:5173. The frontend expects the API at `http://localhost:8000` by default. Override it with `VITE_API_BASE_URL` if needed.
 
 ## API Usage
 
 Create a visit event:
 
 ```bash
-curl -X POST http://localhost:8000/api/visits \
-  -H "Content-Type: application/json" \
-  -d '{"customer_id": "customer-123", "occurred_at": "2026-05-25T09:10:00Z"}'
+curl -X POST http://localhost:8000/api/visits   -H "Content-Type: application/json"   -d '{"customer_id": "customer-123", "occurred_at": "2026-05-25T09:10:00Z"}'
 ```
 
 If `occurred_at` is omitted, the service uses the current server time in UTC.
@@ -59,6 +70,7 @@ curl "http://localhost:8000/api/visits/hourly?start=2026-05-25T00:00:00Z&end=202
 - Visit timestamps are stored and returned in UTC.
 - A tree milestone is calculated as `floor(customer visits / VISITS_PER_TREE)`.
 - SQLite is sufficient for this scope and is persisted through a Docker volume.
+- The frontend is a separate local app that communicates with the backend API.
 
 ## Architecture
 
@@ -67,7 +79,7 @@ flowchart LR
     Device["Physical device"] --> API["FastAPI API"]
     API --> Repo["VisitRepository"]
     Repo --> DB[("SQLite")]
-    Browser["Frontend at /"] --> API
+    Frontend["React frontend"] --> API
     API --> Docs["OpenAPI at /docs"]
 ```
 

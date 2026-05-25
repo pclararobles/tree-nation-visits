@@ -5,5 +5,4 @@ __pycache__
 data
 .git
 .gitignore
-
 *.egg-info/

@@ -20,4 +20,4 @@ The device can omit `occurred_at`; the service then records the server receive t
 
 ## Frontend
 
-The frontend is served from FastAPI at `/` and fetches hourly aggregates from the JSON API. It is intentionally dependency-free so the container remains small and the backend can be reviewed as one cohesive service.
+The frontend is a separate React + TypeScript + Vite app. It uses Recharts for the hourly visits visualization and keeps API calls in a small client module. It is Dockerized for reviewer convenience with a production-style Nginx image, while the standard local Vite workflow remains available for development.

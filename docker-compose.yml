@@ -1,7 +1,7 @@
 services:
   api:
     build:
-      context: .
+      context: ./backend
       target: runtime
     environment:
       DATABASE_PATH: /data/visits.db
@@ -17,9 +17,20 @@ services:
       retries: 5
       start_period: 5s
 
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8000
+    ports:
+      - "5173:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
   test:
     build:
-      context: .
+      context: ./backend
       target: test
     environment:
       DATABASE_PATH: /tmp/test-visits.db
