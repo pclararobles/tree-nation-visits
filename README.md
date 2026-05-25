@@ -7,6 +7,8 @@ A small full-stack implementation of the assessment in `Tech Interview Assessmen
 
 ## Run With Docker
 
+From the repository root:
+
 ```bash
 docker compose up --build
 ```
@@ -18,7 +20,7 @@ Configuration:
 - `DATABASE_PATH`: SQLite file path. Docker Compose uses `/data/visits.db`.
 - `VISITS_PER_TREE`: number of visits that equal one planted tree. Default is `5`.
 
-## Backend: Run Tests With Docker
+## Run Backend Tests
 
 ```bash
 docker compose --profile test run --rm test
@@ -26,22 +28,29 @@ docker compose --profile test run --rm test
 
 ## Frontend: Run Locally
 
-Docker is the easiest path for reviewers, but local frontend development still works normally:
+Docker is the easiest path for reviewers, but local frontend development still works normally from the repository root:
 
 ```bash
-cd frontend
-npm install
-npm run dev
+npm --prefix frontend install
+npm --prefix frontend run dev
 ```
 
-Open http://localhost:5173. The frontend expects the API at `http://localhost:8000` by default. Override it with `VITE_API_BASE_URL` if needed.
+Run the backend in another terminal with:
+
+```bash
+docker compose up --build api
+```
+
+Open http://localhost:5173. The frontend expects the API at `http://localhost:8000` by default.
 
 ## API Usage
 
 Create a visit event:
 
 ```bash
-curl -X POST http://localhost:8000/api/visits   -H "Content-Type: application/json"   -d '{"customer_id": "customer-123", "occurred_at": "2026-05-25T09:10:00Z"}'
+curl -X POST http://localhost:8000/api/visits \
+  -H "Content-Type: application/json" \
+  -d '{"customer_id": "customer-123", "occurred_at": "2026-05-25T09:10:00Z"}'
 ```
 
 If `occurred_at` is omitted, the service uses the current server time in UTC.
@@ -70,7 +79,7 @@ curl "http://localhost:8000/api/visits/hourly?start=2026-05-25T00:00:00Z&end=202
 - Visit timestamps are stored and returned in UTC.
 - A tree milestone is calculated as `floor(customer visits / VISITS_PER_TREE)`.
 - SQLite is sufficient for this scope and is persisted through a Docker volume.
-- The frontend is a separate local app that communicates with the backend API.
+- The frontend is a separate app that can run through Docker or the local Vite dev server.
 
 ## Architecture
 
