@@ -1,6 +1,6 @@
 # Tree Nation Visit Tracker
 
-A small full-stack implementation of the assessment in [Tech Interview Assessment Spec.pdf](Tech%20Interview%20Assessment%20Spec.pdf).
+A small full-stack service for tracking customer visits and converting visit milestones into planted tree counters. The original product brief is available in [Tech Interview Assessment Spec.pdf](Tech%20Interview%20Assessment%20Spec.pdf).
 
 - `backend/`: FastAPI service with SQLModel, Alembic migrations, SQLite persistence, and Docker support.
 - `frontend/`: React + TypeScript + Vite dashboard for visit totals, trees planted, hourly visit aggregates, and customer-level counters.
@@ -40,7 +40,7 @@ The test service uses `TEST_DATABASE_PATH` from `.env` and does not need a local
 
 ## Frontend: Run Locally
 
-Docker is the easiest path for reviewers, but local frontend development still works normally from the repository root:
+Docker is the easiest path for running the full stack, but local frontend development still works normally from the repository root:
 
 ```bash
 npm --prefix frontend install
@@ -59,11 +59,11 @@ Open http://localhost:5173. The frontend expects the API at `http://localhost:80
 
 Once the backend is running, the interactive OpenAPI documentation is hosted at http://localhost:8000/docs.
 
-The API does not include an authentication layer. For this assessment app, the service is intended to run in a controlled local/reviewer environment, so auth would add complexity without supporting the requested behavior.
+The API does not include an authentication layer. This service is intended to run in a controlled internal environment, so auth would add complexity without supporting the current product behavior.
 
 ## Seed Data
 
-On startup, the backend ensures a baseline dataset exists for reviewers: `customer-001` through `customer-010`, with visit counts from `1` to `10`. The seed is idempotent; if those customers already exist, the app does not insert duplicate visits.
+On startup, the backend ensures a baseline demo dataset exists: `customer-001` through `customer-010`, with visit counts from `1` to `10`. The seed is idempotent; if those customers already exist, the app does not insert duplicate visits.
 
 To reset the persisted SQLite database and reload the baseline dataset from scratch:
 
